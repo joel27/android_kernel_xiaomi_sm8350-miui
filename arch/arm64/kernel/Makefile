@@ -74,7 +74,3 @@ extra-y					+= $(head-y) vmlinux.lds
 ifeq ($(CONFIG_DEBUG_EFI),y)
 AFLAGS_head.o += -DVMLINUX_PATH="\"$(realpath $(objtree)/vmlinux)\""
 endif
-# arch/arm64/kernel/Makefile
-
-# 添加这行，禁止为 head.o 生成调试信息
-CFLAGS_head.o := -fno-debug-info
