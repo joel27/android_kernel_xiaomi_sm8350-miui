@@ -82,7 +82,7 @@ static int get_powerup_reason(char *buf)
 		pr_err("get_powerup_reason: pu_reason is null, powerup_reason:%s\n",powerup_reason);
 		return -EINVAL;
 	}
-	kstrtou32(buf, 16, &pu_reason);
+	(void)kstrtou32(buf, 16, &pd_reason);
 	return 0;
 }
 
@@ -92,7 +92,7 @@ static int get_powerdown_reason(char *buf)
 		pr_err("get_powerdown_reason: pd_reason is null, powerdown_reason:%s\n", powerdown_reason);
 		return -EINVAL;
 	}
-	kstrtou32(buf, 16, &pd_reason);
+	(void)kstrtou32(buf, 16, &pu_reason);
 	return 0;
 }
 
