@@ -940,7 +940,7 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
 	struct proc_maps_private *priv = m->private;
 	struct mem_size_stats mss;
 	struct mm_struct *mm;
-	struct vm_area_struct *vma;
+	struct vm_area_struct __maybe_unused *vma;
 	unsigned long last_vma_end = 0;
 	int ret = 0;
 
