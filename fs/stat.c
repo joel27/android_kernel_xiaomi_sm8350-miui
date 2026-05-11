@@ -1,3 +1,4 @@
+struct mount;
 // SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/stat.c
