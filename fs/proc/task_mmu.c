@@ -1806,7 +1806,7 @@ static ssize_t reclaim_write(struct file *file, const char __user *buf,
 	struct task_struct *task;
 	char buffer[200];
 	struct mm_struct *mm;
-	struct vm_area_struct *vma;
+	struct vm_area_struct __maybe_unused *vma;
 	enum reclaim_type type;
 	char *type_buf;
 	unsigned long start = 0;
