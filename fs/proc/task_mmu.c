@@ -1220,7 +1220,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 	struct task_struct *task;
 	char buffer[PROC_NUMBUF];
 	struct mm_struct *mm;
-	struct vm_area_struct *vma;
+	struct vm_area_struct __maybe_unused *vma;
 	enum clear_refs_types type;
 	struct mmu_gather tlb;
 	int itype;
