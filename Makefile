@@ -5,6 +5,8 @@ SUBLEVEL = 247
 EXTRAVERSION = -qgki-gfffde3ec8864
 NAME = Kleptomaniac Octopus
 
+sed -i '/^KBUILD_AFLAGS/ s/$/ -Wa,-Wno-dwarf2-asm-err/'
+
 # indicate that change "Kbuild: Support nested composite objects" is
 # present in the kernel so that out-of-tree modules can act upon it
 export KERNEL_SUPPORTS_NESTED_COMPOSITES := y
