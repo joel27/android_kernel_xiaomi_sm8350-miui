@@ -14,7 +14,7 @@
 
 #define KMSG_COMPONENT "zram"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
-#define ZRAM_COMP_PRIORITY_BIT 16 
+#define ZRAM_COMP_PRIORITY_BASE_BIT 16
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -165,13 +165,13 @@ static inline void zram_set_priority(struct zram *zram, u32 index, u32 prio)
 	 * Clear previous priority value first, in case if we recompress
 	 * further an already recompressed page
 	 */
-zram->table[index].flags &= ~((u32)ZRAM_COMP_PRIORITY_MASK << ZRAM_COMP_PRIORITY_BIT1);
-zram->table[index].flags |= ((u32)prio << ZRAM_COMP_PRIORITY_BIT1);
+zram->table[index].flags &= ~((u32)ZRAM_COMP_PRIORITY_MASK << ZRAM_COMP_PRIORITY_BASE_BIT);
+zram->table[index].flags |= ((u32)prio << ZRAM_COMP_PRIORITY_BASE_BIT);
 }
 
 static inline u32 zram_get_priority(struct zram *zram, u32 index)
 {
-	u32 prio = zram->table[index].flags >> ZRAM_COMP_PRIORITY_BIT1;
+	u32 prio = zram->table[index].flags >> ZRAM_COMP_PRIORITY_BASE_BIT;
 
 	return prio & ZRAM_COMP_PRIORITY_MASK;
 }
