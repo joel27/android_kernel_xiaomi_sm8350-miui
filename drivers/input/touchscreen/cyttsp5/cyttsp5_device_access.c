@@ -1805,7 +1805,7 @@ static ssize_t cyttsp5_cmcp_test_store(struct device *dev,
 	 * If it is not all Test, then range_check should be 0
 	 * because other test does not has concept of basic check
 	 */
-	if (test_item > 0 && test_item < 5) {
+	if (test_item > 0 && test_item < 5)
 		range_check = 0;
 		dad->cmcp_test_items = test_item;
 		dad->cmcp_range_check = range_check;
@@ -1816,7 +1816,7 @@ static ssize_t cyttsp5_cmcp_test_store(struct device *dev,
 			cmcp_test_case_array[test_item],
 			cmcp_test_range_check_array[range_check],
 			cmcp_test_force_cal_array[force_calibrate]);
-	}
+
 error:
 	mutex_unlock(&dad->sysfs_lock);
 	pm_runtime_put(dev);
@@ -2025,7 +2025,7 @@ int save_engineering_data(struct device *dev, char *out_buf, int index,
 						index = prepare_print_data(
 							out_buf,
 							&tmp, index, 1);
-					for (j = 1; j < tx_num; j++) {
+					for (j = 1; j < tx_num; j++)
 						index = prepare_print_data(
 						out_buf,
 			&cmcp_info->cm_sensor_column_delta[(j-1)*rx_num+i],
@@ -2063,7 +2063,7 @@ int save_engineering_data(struct device *dev, char *out_buf, int index,
 						index = prepare_print_data(
 								out_buf, &i,
 								index, 1);
-					for (j = 0; j < tx_num; j++) {
+					for (j = 0; j < tx_num; j++)
 						index = prepare_print_data(
 							out_buf,
 				&cmcp_info->cm_sensor_row_delta[j*rx_num+i-1],
