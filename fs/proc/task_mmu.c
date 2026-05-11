@@ -204,7 +204,7 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
 	struct proc_maps_private *priv = m->private;
 	unsigned long last_addr = m->version;
 	struct mm_struct *mm;
-	
+	struct vm_area_struct *vma;
 	unsigned int pos = *ppos;
 
 	/* See m_cache_vma(). Zero at the start or after lseek. */
@@ -227,7 +227,6 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
 	hold_task_mempolicy(priv);
 	priv->tail_vma = get_gate_vma(mm);
 
-struct vm_area_struct *vma;
 	if (last_addr) {
 		vma = find_vma(mm, last_addr - 1);
 		if (vma && vma->vm_start <= last_addr)
@@ -941,7 +940,7 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
 	struct proc_maps_private *priv = m->private;
 	struct mem_size_stats mss;
 	struct mm_struct *mm;
-	
+	struct vm_area_struct *vma;
 	unsigned long last_vma_end = 0;
 	int ret = 0;
 
@@ -1221,7 +1220,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 	struct task_struct *task;
 	char buffer[PROC_NUMBUF];
 	struct mm_struct *mm;
-	
+	struct vm_area_struct *vma;
 	enum clear_refs_types type;
 	struct mmu_gather tlb;
 	int itype;
@@ -1807,7 +1806,7 @@ static ssize_t reclaim_write(struct file *file, const char __user *buf,
 	struct task_struct *task;
 	char buffer[200];
 	struct mm_struct *mm;
-	
+	struct vm_area_struct *vma;
 	enum reclaim_type type;
 	char *type_buf;
 	unsigned long start = 0;
