@@ -14,6 +14,7 @@
 
 #define KMSG_COMPONENT "zram"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define ZRAM_COMP_PRIORITY_BIT1 16 
 
 #include <linux/module.h>
 #include <linux/kernel.h>
