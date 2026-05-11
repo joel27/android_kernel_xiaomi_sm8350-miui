@@ -227,6 +227,7 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
 	hold_task_mempolicy(priv);
 	priv->tail_vma = get_gate_vma(mm);
 
+struct vm_area_struct *vma;
 	if (last_addr) {
 		vma = find_vma(mm, last_addr - 1);
 		if (vma && vma->vm_start <= last_addr)
