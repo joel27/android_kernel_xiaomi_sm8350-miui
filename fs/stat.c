@@ -31,6 +31,7 @@
  * found on the VFS inode structure.  This is the default if no getattr inode
  * operation is supplied.
  */
+struct mount;
 void generic_fillattr(struct inode *inode, struct kstat *stat)
 {
 	stat->dev = inode->i_sb->s_dev;
