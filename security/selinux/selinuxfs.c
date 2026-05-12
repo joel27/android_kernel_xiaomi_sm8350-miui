@@ -1,3 +1,5 @@
+#include <linux/types.h>
+#include <linux/stdbool.h>
 // 修复 KSU/SusFS 未定义符号
 bool ksu_selinux_hide_running __attribute__((weak)) = false;
 int fake_state __attribute__((weak)) = 0;
