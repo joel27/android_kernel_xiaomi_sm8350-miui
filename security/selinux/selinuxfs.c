@@ -1,7 +1,3 @@
-// 补缺失符号声明
-bool ksu_selinux_hide_running = false;
-int fake_state = 0;
-
 // SPDX-License-Identifier: GPL-2.0-only
 /* Updated: Karl MacMillan <kmacmillan@tresys.com>
  *
