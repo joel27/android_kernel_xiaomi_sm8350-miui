@@ -1,9 +1,3 @@
-#include <linux/types.h>
-#include <stdbool.h>
-// 修复 KSU/SusFS 未定义符号
-bool ksu_selinux_hide_running __attribute__((weak)) = false;
-int fake_state __attribute__((weak)) = 0;
-
 // SPDX-License-Identifier: GPL-2.0-only
 /* Updated: Karl MacMillan <kmacmillan@tresys.com>
  *
