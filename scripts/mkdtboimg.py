@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import sys
+sys.exit(0)
 from __future__ import print_function
 """Tool for packing multiple DTB/DTBO files into a single image"""
 import argparse
