@@ -1998,3 +1998,6 @@ FORCE:
 # Declare the contents of the PHONY variable as phony.  We keep that
 # information in a variable so we can use it in if_changed and friends.
 .PHONY: $(PHONY)
+# 强制禁用 dtbo_img 调用 mkdtboimg
+dtbo_img: dtbo
+	@echo "SKIP MKDTBOIMG.PY - DTBO DISABLED"
