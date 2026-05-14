@@ -1,27 +1,30 @@
+# SPDX-License-Identifier: GPL-2.0-only
+__dtbo := $(sort $(dtbo-y))
 
-# SPDX-License-Identifier: GPL-2.0
-# Directly disable dtbo.img output
-# Do NOT generate dtbo.img
+dtbo-base	:= $(sort $(foreach m,$(__dtbo),$($(m)-base)))
+dtbo := $(foreach m,$(__dtbo),$(if $($(m)-base),$(m)))
 
-PHONY += dtbo_img
-dtbo_img:
-	@echo "========================================="
-	@echo " DTBO image generation is DISABLED "
-	@echo " No dtbo.img will be output "
-	@echo "========================================="
+__dtbo     := $(addprefix $(obj)/,$(__dtbo))
+dtbo-base	:= $(addprefix $(obj)/,$(dtbo-base))
+dtbo	:= $(addprefix $(obj)/,$(dtbo))
 
-# 清空所有 dtbo 编译目标
-dtbo-y :=
-dtbo-m :=
-dtbo- :=
+ifneq ($(DTC_OVERLAY_TEST_EXT),)
+DTC_OVERLAY_TEST = $(DTC_OVERLAY_TEST_EXT)
+quiet_cmd_dtbo_verify	= VERIFY  $@
+cmd_dtbo_verify = $(foreach m,\
+	$(addprefix $(obj)/,$($(@F)-base)),\
+		$(if $(m),\
+			$(DTC_OVERLAY_TEST) $(m) $@ \
+			$(dot-target).$(patsubst $(obj)/%.dtb,%,$(m)).tmp;))\
+			true
+else
+cmd_dtbo_verify = true
+endif
 
-# 禁用 dtbo.img 生成规则
-$(obj)/dtbo.img:
-	@true
+$(obj)/%.dtbo: $(src)/%.dts FORCE
+	$(call if_changed_dep,dtc,dtb,-@)
+	$(call if_changed,dtbo_verify)
 
-# 禁用所有 dtbo 编译
-$(obj)/%.dtbo:
-	@true
+$(call multi_depend, $(dtbo), , -base)
 
-# 空规则，不执行任何动作
-dtbo: dtbo_img
+always +=  $(dtbo)
