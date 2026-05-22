@@ -3140,6 +3140,10 @@ static int aw8697_haptics_upload_effect(struct input_dev *dev,
 static int aw8697_haptics_playback(struct input_dev *dev, int effect_id,
 				   int val)
 {
+	if (!boot_completed) {
+        pr_info("aw8697: Boot phase, skip vibration to prevent bootloop\n");
+        return 0;
+	}
 	struct aw8697 *aw8697 = input_get_drvdata(dev);
 	int rc = 0;
 
