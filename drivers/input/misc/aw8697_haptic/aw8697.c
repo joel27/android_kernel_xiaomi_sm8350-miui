@@ -266,8 +266,6 @@ static char aw8697_rtp_name[][AW8697_RTP_NAME_MAX] = {
 static int CUSTOME_WAVE_ID;
 struct aw8697_container *aw8697_rtp;
 struct aw8697 *g_aw8697;
-// 系统启动完成标志位，0=未启动完成，1=启动完成
-static int boot_completed = 0;
 
 /******************************************************
  *
@@ -3142,10 +3140,6 @@ static int aw8697_haptics_upload_effect(struct input_dev *dev,
 static int aw8697_haptics_playback(struct input_dev *dev, int effect_id,
 				   int val)
 {
-	if (!boot_completed) {
-        pr_info("aw8697: Boot phase, skip vibration to prevent bootloop\n");
-        return 0;
-	}
 	struct aw8697 *aw8697 = input_get_drvdata(dev);
 	int rc = 0;
 
