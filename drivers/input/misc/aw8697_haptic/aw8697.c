@@ -266,6 +266,8 @@ static char aw8697_rtp_name[][AW8697_RTP_NAME_MAX] = {
 static int CUSTOME_WAVE_ID;
 struct aw8697_container *aw8697_rtp;
 struct aw8697 *g_aw8697;
+// 系统启动完成标志位，0=未启动完成，1=启动完成
+static int boot_completed = 0;
 
 /******************************************************
  *
