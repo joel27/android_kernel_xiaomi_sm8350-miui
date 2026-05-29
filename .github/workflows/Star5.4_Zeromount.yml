@@ -73,6 +73,12 @@ jobs:
         run: |
           curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s main
 
+      - name: Fix pgtable.h for kernel 5.4
+        run: |
+          grep -rl "linux/pgtable.h" drivers/kernelsu/ 2>/dev/null | while read f; do
+            sed -i 's|#include <linux/pgtable.h>|#include <asm/pgtable.h>|g' "$f"
+          done
+
       - name: Apply Extra Patches (SuSFS, ZeroMount, ZRAM)
         run: |
           # SuSFS
@@ -92,7 +98,7 @@ jobs:
               cp "$ZM_FILE" drivers/zeromount.c
               echo 'obj-$(CONFIG_ZEROMOUNT) += zeromount.o' >> drivers/Makefile
             else
-              echo "::warning::zeromount.c no encontrado en el repositorio joel27/Super-Builders"
+              echo "::warning::zeromount.c no encontrado en joel27/Super-Builders"
             fi
           fi
 
