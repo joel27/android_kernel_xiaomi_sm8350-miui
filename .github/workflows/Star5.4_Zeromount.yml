@@ -1,54 +1,81 @@
-name: Build Kernel with ReSukiSU + ZeroMount + SuSFS
+name: Build Xiaomi11U Hyper A14 - Super-Builders + ZeroMount
 
 on:
   workflow_dispatch:
 
 env:
-  # ----- TU KERNEL -----
-  KERNEL_SOURCE: "joel27/android_kernel_xiaomi_sm8350-miui"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  DEVICE_NAME: "xiaomi_11U"
+  DEVICE_CODENAME: "star"
+
+  CUSTOM_CMDS: "CLANG_TRIPLE=aarch64-linux-gnu-"
+  EXTRA_CMDS: 'LD=ld.lld LLVM=1 LLVM_IAS=1 EXTRA_CFLAGS="-Wno-unused-function -Wno-frame-larger-than"'
+
+  KERNEL_SOURCE: "https://github.com/joel27/android_kernel_xiaomi_sm8350-miui.git"
   KERNEL_BRANCH: "hyper-14"
 
-  # ----- TOOLCHAINS (Clang 20 + GCC 4.9) -----
   CLANG_SOURCE: "https://github.com/ZyCromerZ/Clang/releases/download/20.0.0git-20241222-release/Clang-20.0.0git-20241222.tar.gz"
   CLANG_BRANCH: ""
-  GCC_GNU: "false"
+  GCC_GNU: false
   GCC_64_SOURCE: "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9.git"
   GCC_64_BRANCH: "android12L-release"
   GCC_32_SOURCE: "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9.git"
   GCC_32_BRANCH: "android12L-release"
 
-  # ----- DEFCONFIG (ruta relativa a arch/arm64/configs/) -----
   DEFCONFIG_NAME: "vendor/star_defconfig"
 
-  # ----- KERNELSU (ReSukiSU) -----
+  # ----- KernelSU (ReSukiSU) -----
   KERNELSU_AUTO_GET: "true"
   KERNELSU_AUTO_FORK: "resukisu"
   KERNELSU_METHOD: "shell"
 
-  # ----- CARACTERÍSTICAS ACTIVADAS -----
-  add_susfs: "true"
+  # ----- ZeroMount y SuSFS -----
   add_zeromount: "true"
+  add_susfs: "true"
   add_zram: "true"
 
-  # ----- SUSFS -----
-  SUSFS_ENABLE: "true"
-  SUSFS_FIXED: "false"
+  # ----- SusFS (compatible con Super-Builders) -----
+  SUSFS_ENABLE: true
+  SUSFS_FIXED: false
 
-  # ----- EMPAQUETADO -----
+  # ----- AnyKernel3 -----
   AK3_SOURCE: "https://github.com/osm0sis/AnyKernel3.git"
   AK3_BRANCH: "master"
   PACK_METHOD: "Anykernel3"
   PACK_KMODULES: "false"
 
-  # ----- OTRAS -----
-  EXTRA_CMDS: 'LD=ld.lld LLVM=1 LLVM_IAS=1'
-  PYTHON_VERSION: "3"
+  # ----- Parches (usaremos Super-Builders) -----
+  PATCHES_SOURCE: "joel27/Super-Builders"
+  PATCHES_BRANCH: "main"
+
+  REKERNEL_ENABLE: "false"
+  HOOK_METHOD: "syscall"
+  KERNEL_PATCH: "false"
+
+  KPM_ENABLE: false
+  KPM_INLINE: false
+  KPM_KPATCH_NEXT: false
+
+  BASEBAND_GUARD_ENABLE: "false"
+  HIDE_STUFF: "false"
+
+  GENERATE_DTB: true
+  GENERATE_CHIP: "qcom"
+
+  BUILD_DEBUGGER: "false"
+  SKIP_PATCH: "false"
+  BUILD_OTHER_CONFIG: "false"
+  MERGE_CONFIG_FILES: "vendor/venus_QGKI.config,vendor/xiaomi_QGKI.config"
+  FREE_MORE_SPACE: "false"
+
+  ROM_TEXT: "Super-ZeroMount"
 
 jobs:
-  build:
-    runs-on: ubuntu-22.04
+  build-kernel:
+    name: Build with Super-Builders + ZeroMount
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout Kernel Source
+      - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
           repository: ${{ env.KERNEL_SOURCE }}
@@ -56,7 +83,7 @@ jobs:
           fetch-depth: 1
           submodules: true
 
-      - name: Setup Environment
+      - name: Setup environment
         run: |
           sudo apt update
           sudo apt install -y bc bison flex libssl-dev libelf-dev make python3 cpio zip curl wget rsync
@@ -69,72 +96,84 @@ jobs:
           git clone ${{ env.GCC_64_SOURCE }} -b ${{ env.GCC_64_BRANCH }} gcc64
           git clone ${{ env.GCC_32_SOURCE }} -b ${{ env.GCC_32_BRANCH }} gcc32
 
+      - name: Clone Super-Builders (patches + scripts)
+        run: |
+          git clone --depth 1 https://github.com/${{ env.PATCHES_SOURCE }} -b ${{ env.PATCHES_BRANCH }} super_builders
+
       - name: Integrate ReSukiSU
         run: |
           curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s main
 
-      - name: Fix pgtable.h for kernel 5.4
+      # ----- Aplicar fixes de compatibilidad para kernel 5.4 (los mismos que funcionaban) -----
+      - name: Apply kernel 5.4 compatibility fixes
         run: |
+          # Fix pgtable.h
           grep -rl "linux/pgtable.h" drivers/kernelsu/ 2>/dev/null | while read f; do
             sed -i 's|#include <linux/pgtable.h>|#include <asm/pgtable.h>|g' "$f"
           done
+          # Fix strncpy_from_user_nofault -> strncpy_from_user
+          grep -rl "strncpy_from_user_nofault" drivers/kernelsu/ 2>/dev/null | while read f; do
+            sed -i 's|strncpy_from_user_nofault|strncpy_from_user|g' "$f"
+          done
+          # Fix copy_*_nofault
+          grep -rl "copy_to_kernel_nofault" drivers/kernelsu/ 2>/dev/null | while read f; do
+            sed -i 's|copy_to_kernel_nofault|probe_kernel_write|g' "$f"
+          done
+          grep -rl "copy_from_user_nofault" drivers/kernelsu/ 2>/dev/null | while read f; do
+            sed -i 's|copy_from_user_nofault|probe_kernel_read|g' "$f"
+          done
 
-      - name: Apply Extra Patches (SuSFS, ZeroMount, ZRAM)
+      - name: Add SuSFS (from susfs4ksu, kernel-5.4)
+        if: env.add_susfs == 'true'
         run: |
-          # SuSFS
-          if [ "${{ env.add_susfs }}" = "true" ]; then
-            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b kernel-5.4
-            cp susfs4ksu/kernel_patches/fs/susfs.c fs/
-            cp susfs4ksu/kernel_patches/include/linux/susfs.h include/linux/
-            cp susfs4ksu/kernel_patches/include/linux/susfs_def.h include/linux/
-            echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b kernel-5.4
+          cp susfs4ksu/kernel_patches/fs/susfs.c fs/
+          cp susfs4ksu/kernel_patches/include/linux/susfs.h include/linux/
+          cp susfs4ksu/kernel_patches/include/linux/susfs_def.h include/linux/
+          echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
+          # Asegurar cred.h
+          grep -q "linux/cred.h" include/linux/susfs_def.h || sed -i '1i#include <linux/cred.h>' include/linux/susfs_def.h
+
+      - name: Add ZeroMount (from Super-Builders)
+        if: env.add_zeromount == 'true'
+        run: |
+          ZM_FILE=$(find super_builders -name "zeromount.c" | head -n 1)
+          if [ -f "$ZM_FILE" ]; then
+            cp "$ZM_FILE" drivers/zeromount.c
+            echo 'obj-$(CONFIG_ZEROMOUNT) += zeromount.o' >> drivers/Makefile
+            echo "CONFIG_ZEROMOUNT=y" >> arch/arm64/configs/${{ env.DEFCONFIG_NAME }}
+          else
+            echo "::warning::zeromount.c not found in Super-Builders"
           fi
 
-          # ZeroMount (desde tu fork Super-Builders, rama main)
-          if [ "${{ env.add_zeromount }}" = "true" ]; then
-            git clone https://github.com/joel27/Super-Builders.git -b main
-            ZM_FILE=$(find Super-Builders -name "zeromount.c" | head -n 1)
-            if [ -f "$ZM_FILE" ]; then
-              cp "$ZM_FILE" drivers/zeromount.c
-              echo 'obj-$(CONFIG_ZEROMOUNT) += zeromount.o' >> drivers/Makefile
-            else
-              echo "::warning::zeromount.c no encontrado en joel27/Super-Builders"
-            fi
-          fi
-
-          # ZRAM
-          if [ "${{ env.add_zram }}" = "true" ]; then
-            echo "CONFIG_ZRAM=y" >> arch/arm64/configs/${{ env.DEFCONFIG_NAME }}
-          fi
-
-      - name: Configure Kernel
+      - name: Configure kernel
         run: |
           export ARCH=arm64
           make ARCH=arm64 ${{ env.DEFCONFIG_NAME }}
-          # Forzar opciones de configuración
+          # Forzar opciones
           echo "CONFIG_KSU=y" >> .config
           echo "CONFIG_KSU_SUSFS=y" >> .config
-          echo "CONFIG_ZEROMOUNT=y" >> .config
+          if [ "${{ env.add_zeromount }}" = "true" ]; then
+            echo "CONFIG_ZEROMOUNT=y" >> .config
+          fi
+          if [ "${{ env.add_zram }}" = "true" ]; then
+            echo "CONFIG_ZRAM=y" >> .config
+          fi
 
-      - name: Build Kernel
+      - name: Build kernel
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=$(pwd)/gcc64/bin/aarch64-linux-android-
           export CROSS_COMPILE_ARM32=$(pwd)/gcc32/bin/arm-linux-androideabi-
           export CLANG_TRIPLE=aarch64-linux-gnu-
           make -j$(nproc) ARCH=arm64 \
-            CC=clang \
-            LD=ld.lld \
-            AR=llvm-ar \
-            NM=llvm-nm \
-            OBJCOPY=llvm-objcopy \
-            OBJDUMP=llvm-objdump \
-            STRIP=llvm-strip \
+            CC=clang LD=ld.lld AR=llvm-ar NM=llvm-nm \
+            OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
             CROSS_COMPILE=$CROSS_COMPILE \
             CROSS_COMPILE_ARM32=$CROSS_COMPILE_ARM32 \
             CLANG_TRIPLE=$CLANG_TRIPLE
 
-      - name: Package with AnyKernel3
+      - name: Package AnyKernel3 flash zip
         run: |
           git clone ${{ env.AK3_SOURCE }} -b ${{ env.AK3_BRANCH }} AnyKernel3
           if [ -f arch/arm64/boot/Image.gz-dtb ]; then
@@ -144,13 +183,28 @@ jobs:
           elif [ -f arch/arm64/boot/Image ]; then
             cp arch/arm64/boot/Image AnyKernel3/
           fi
+          if [ "${{ env.GENERATE_DTB }}" = "true" ] && [ -f arch/arm64/boot/dtbo.img ]; then
+            cp arch/arm64/boot/dtbo.img AnyKernel3/
+          fi
           cd AnyKernel3
-          zip -r9 ../kernel-zeromount-$(date +%Y%m%d-%H%M).zip . -x ".git*"
+          sed -i 's/do.devicecheck=1/do.devicecheck=0/g' anykernel.sh
+          echo 'BLOCK=boot;' >> anykernel.sh
+          echo 'IS_SLOT_DEVICE=1;' >> anykernel.sh
+          echo 'device.name1=star;' >> anykernel.sh
+          zip -r9 ../kernel-${{ env.ROM_TEXT }}-$(date +%Y%m%d-%H%M).zip . -x ".git*"
           cd ..
 
-      - name: Upload Artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-zeromount
+          name: kernel-${{ env.ROM_TEXT }}
           path: "*.zip"
+          retention-days: 7
+
+      - name: Upload dtbo artifact (if exists)
+        if: env.GENERATE_DTB == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dtbo.img
+          path: arch/arm64/boot/dtbo.img
           retention-days: 7
