@@ -26,12 +26,9 @@ env:
   KERNELSU_METHOD: "shell"
 
   # ----- CARACTERÍSTICAS ACTIVADAS -----
-  add_susfs: "true"          # SuSFS
-  add_zeromount: "true"      # ZeroMount
-  add_zram: "true"           # ZRAM (opcional)
-  add_kprobes: "true"        # Kprobes (recomendado)
-  add_kernel_su: "true"      # KernelSU (ya incluido)
-  add_sukisu: "false"        # No usar SukiSU, usamos ReSukiSU
+  add_susfs: "true"
+  add_zeromount: "true"
+  add_zram: "true"
 
   # ----- SUSFS -----
   SUSFS_ENABLE: "true"
@@ -51,7 +48,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout Source
+      - name: Checkout Kernel Source
         uses: actions/checkout@v4
         with:
           repository: ${{ env.KERNEL_SOURCE }}
@@ -66,14 +63,15 @@ jobs:
 
       - name: Setup Clang & GCC
         run: |
-          # Clang
           mkdir -p clang
           curl -L ${{ env.CLANG_SOURCE }} | tar -xz -C clang
           echo "$(pwd)/clang/bin" >> $GITHUB_PATH
-          # GCC 64
           git clone ${{ env.GCC_64_SOURCE }} -b ${{ env.GCC_64_BRANCH }} gcc64
-          # GCC 32
           git clone ${{ env.GCC_32_SOURCE }} -b ${{ env.GCC_32_BRANCH }} gcc32
+
+      - name: Clone Super-Builders (parches ZeroMount + SuSFS)
+        run: |
+          git clone --depth 1 https://github.com/joel27/Super-Builders.git super_builders
 
       - name: Integrate ReSukiSU
         run: |
@@ -81,7 +79,7 @@ jobs:
 
       - name: Apply Extra Patches (SuSFS, ZeroMount, ZRAM)
         run: |
-          # SuSFS
+          # SuSFS desde susfs4ksu (original)
           if [ "${{ env.add_susfs }}" = "true" ]; then
             git clone https://gitlab.com/simonpunk/susfs4ksu.git -b kernel-5.4
             cp susfs4ksu/kernel_patches/fs/susfs.c fs/
@@ -89,13 +87,20 @@ jobs:
             cp susfs4ksu/kernel_patches/include/linux/susfs_def.h include/linux/
             echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
           fi
-          # ZeroMount
+
+          # ZeroMount: el archivo zeromount.c está dentro de Super-Builders
           if [ "${{ env.add_zeromount }}" = "true" ]; then
-            git clone https://github.com/Enginex0/ZeroMount.git -b main
-            cp ZeroMount/zeromount.c drivers/zeromount.c
-            echo 'obj-$(CONFIG_ZEROMOUNT) += zeromount.o' >> drivers/Makefile
+            # Busca zeromount.c en las subcarpetas comunes de Super-Builders
+            ZM_FILE=$(find super_builders -name "zeromount.c" | head -n 1)
+            if [ -f "$ZM_FILE" ]; then
+              cp "$ZM_FILE" drivers/zeromount.c
+              echo 'obj-$(CONFIG_ZEROMOUNT) += zeromount.o' >> drivers/Makefile
+            else
+              echo "::warning::No se encontró zeromount.c en Super-Builders. ZeroMount omitido."
+            fi
           fi
-          # ZRAM (simple activación en defconfig)
+
+          # ZRAM
           if [ "${{ env.add_zram }}" = "true" ]; then
             echo "CONFIG_ZRAM=y" >> arch/arm64/configs/${{ env.DEFCONFIG_NAME }}
           fi
@@ -103,10 +108,17 @@ jobs:
       - name: Configure Kernel
         run: |
           make ${{ env.DEFCONFIG_NAME }}
-          # Forzar opciones de KernelSU/SuSFS
-          ./scripts/config --enable CONFIG_KSU
-          ./scripts/config --enable CONFIG_KSU_SUSFS
-          ./scripts/config --enable CONFIG_ZEROMOUNT
+          # Habilitar opciones con scripts/config (si existe)
+          if [ -f scripts/config ]; then
+            ./scripts/config --enable CONFIG_KSU
+            ./scripts/config --enable CONFIG_KSU_SUSFS
+            ./scripts/config --enable CONFIG_ZEROMOUNT
+          else
+            # Si no existe scripts/config, forzar con echo en .config
+            echo "CONFIG_KSU=y" >> .config
+            echo "CONFIG_KSU_SUSFS=y" >> .config
+            echo "CONFIG_ZEROMOUNT=y" >> .config
+          fi
 
       - name: Build Kernel
         run: |
