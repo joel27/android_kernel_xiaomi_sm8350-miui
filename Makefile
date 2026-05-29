@@ -2,7 +2,7 @@
 VERSION = 5
 PATCHLEVEL = 4
 SUBLEVEL = 284
-EXTRAVERSION = -qgki
+EXTRAVERSION = -qgki-gfffde3ec8864
 NAME = Kleptomaniac Octopus
 obj-y += kernelsu/
 
