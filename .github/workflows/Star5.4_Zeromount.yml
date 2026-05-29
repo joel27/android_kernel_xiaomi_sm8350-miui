@@ -4,40 +4,31 @@ on:
   workflow_dispatch:
 
 env:
-  # ¡CORREGIDO! Usar el formato owner/repo que espera actions/checkout
   KERNEL_SOURCE: "joel27/android_kernel_xiaomi_sm8350-miui"
   KERNEL_BRANCH: "hyper-14"
 
-  # ----- TOOLCHAINS -----
   CLANG_SOURCE: "https://github.com/ZyCromerZ/Clang/releases/download/20.0.0git-20241222-release/Clang-20.0.0git-20241222.tar.gz"
   GCC_64_SOURCE: "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9.git"
   GCC_64_BRANCH: "android12L-release"
   GCC_32_SOURCE: "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9.git"
   GCC_32_BRANCH: "android12L-release"
 
-  # ----- DEFCONFIG -----
   DEFCONFIG_NAME: "vendor/star_defconfig"
-
-  # ----- REPOSITORIO DE PARCHES (Super-Builders) -----
   PATCHES_SOURCE: "joel27/Super-Builders"
   PATCHES_BRANCH: "main"
 
-  # ----- KERNELSU (ReSukiSU) -----
   KERNELSU_AUTO_FORK: "resukisu"
   KERNELSU_METHOD: "shell"
 
-  # ----- CARACTERÍSTICAS -----
   add_susfs: "true"
   add_zeromount: "true"
   add_zram: "true"
 
-  # ----- EMPAQUETADO -----
   AK3_SOURCE: "https://github.com/osm0sis/AnyKernel3.git"
   AK3_BRANCH: "master"
   GENERATE_DTB: "true"
   ROM_TEXT: "Super-ZeroMount"
 
-  # ----- OTRAS -----
   EXTRA_CMDS: 'LD=ld.lld LLVM=1 LLVM_IAS=1'
   PYTHON_VERSION: "3"
 
@@ -45,7 +36,6 @@ jobs:
   build-kernel:
     runs-on: ubuntu-latest
     steps:
-      # 1. Checkout del kernel: Aquí se usa la variable corregida
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
         with:
@@ -54,13 +44,11 @@ jobs:
           fetch-depth: 1
           submodules: true
 
-      # 2. Instalar dependencias
       - name: Setup Environment
         run: |
           sudo apt update
           sudo apt install -y bc bison flex libssl-dev libelf-dev make python3 cpio zip curl wget rsync
 
-      # 3. Configurar Clang y GCC
       - name: Setup Toolchains
         run: |
           mkdir -p clang
@@ -69,26 +57,23 @@ jobs:
           git clone ${{ env.GCC_64_SOURCE }} -b ${{ env.GCC_64_BRANCH }} gcc64
           git clone ${{ env.GCC_32_SOURCE }} -b ${{ env.GCC_32_BRANCH }} gcc32
 
-      # 4. Clonar Super-Builders (para obtener zeromount.c y otros archivos)
       - name: Clone Super-Builders
         run: git clone --depth 1 https://github.com/${{ env.PATCHES_SOURCE }} -b ${{ env.PATCHES_BRANCH }} super_builders
 
-      # 5. Integrar ReSukiSU
       - name: Integrate ReSukiSU
         run: curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s main
 
-      # ⚠️ 6. ¡CRUCIAL! Aplicar fixes de compatibilidad para kernel 5.4
       - name: Apply Kernel 5.4 Compatibility Fixes
         run: |
-          # Fix 1: pgtable.h
+          # Fix pgtable.h
           grep -rl "linux/pgtable.h" drivers/kernelsu/ 2>/dev/null | while read f; do
             sed -i 's|#include <linux/pgtable.h>|#include <asm/pgtable.h>|g' "$f"
           done
-          # Fix 2: strncpy_from_user_nofault -> strncpy_from_user
+          # Fix strncpy_from_user_nofault
           grep -rl "strncpy_from_user_nofault" drivers/kernelsu/ 2>/dev/null | while read f; do
             sed -i 's|strncpy_from_user_nofault|strncpy_from_user|g' "$f"
           done
-          # Fix 3: copy_*_nofault -> probe_kernel_*
+          # Fix copy_*_nofault
           grep -rl "copy_to_kernel_nofault" drivers/kernelsu/ 2>/dev/null | while read f; do
             sed -i 's|copy_to_kernel_nofault|probe_kernel_write|g' "$f"
           done
@@ -96,7 +81,15 @@ jobs:
             sed -i 's|copy_from_user_nofault|probe_kernel_read|g' "$f"
           done
 
-      # 7. Añadir SuSFS
+      # 🔧 NUEVO: Reemplazar seccomp_cache.c por un stub que no use SECCOMP_ARCH_NATIVE_NR
+      - name: Fix seccomp_cache.c for kernel 5.4
+        run: |
+          cat > drivers/kernelsu/infra/seccomp_cache.c << 'EOF'
+          #include "seccomp_cache.h"
+          void ksu_seccomp_allow_cache(struct seccomp_filter *filter, int nr) { }
+          void ksu_seccomp_cache_init(void) { }
+          EOF
+
       - name: Add SuSFS
         if: env.add_susfs == 'true'
         run: |
@@ -105,10 +98,8 @@ jobs:
           cp susfs4ksu/kernel_patches/include/linux/susfs.h include/linux/
           cp susfs4ksu/kernel_patches/include/linux/susfs_def.h include/linux/
           echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
-          # Añadir header faltante
           grep -q "linux/cred.h" include/linux/susfs_def.h || sed -i '1i#include <linux/cred.h>' include/linux/susfs_def.h
 
-      # 8. Añadir ZeroMount (buscando zeromount.c dentro de Super-Builders)
       - name: Add ZeroMount
         if: env.add_zeromount == 'true'
         run: |
@@ -121,12 +112,10 @@ jobs:
             echo "::warning::zeromount.c not found in Super-Builders"
           fi
 
-      # 9. Configurar el kernel
       - name: Configure Kernel
         run: |
           export ARCH=arm64
           make ARCH=arm64 ${{ env.DEFCONFIG_NAME }}
-          # Forzar opciones
           echo "CONFIG_KSU=y" >> .config
           echo "CONFIG_KSU_SUSFS=y" >> .config
           if [ "${{ env.add_zram }}" = "true" ]; then
@@ -136,7 +125,6 @@ jobs:
             echo "CONFIG_ZEROMOUNT=y" >> .config
           fi
 
-      # 10. Compilar el kernel
       - name: Build Kernel
         run: |
           export ARCH=arm64
@@ -150,7 +138,6 @@ jobs:
             CROSS_COMPILE_ARM32=$CROSS_COMPILE_ARM32 \
             CLANG_TRIPLE=$CLANG_TRIPLE
 
-      # 11. Empaquetar con AnyKernel3
       - name: Package with AnyKernel3
         run: |
           git clone ${{ env.AK3_SOURCE }} -b ${{ env.AK3_BRANCH }} AnyKernel3
@@ -172,7 +159,6 @@ jobs:
           zip -r9 ../kernel-${{ env.ROM_TEXT }}-$(date +%Y%m%d-%H%M).zip . -x ".git*"
           cd ..
 
-      # 12. Subir los artefactos
       - name: Upload Kernel Artifact
         uses: actions/upload-artifact@v4
         with:
