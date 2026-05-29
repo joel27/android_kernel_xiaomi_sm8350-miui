@@ -1,0 +1,148 @@
+name: Build Kernel with ReSukiSU + ZeroMount + SuSFS
+
+on:
+  workflow_dispatch:
+
+env:
+  # ----- TU KERNEL -----
+  KERNEL_SOURCE: "https://github.com/joel27/android_kernel_xiaomi_sm8350-miui.git"
+  KERNEL_BRANCH: "hyper-14"
+
+  # ----- TOOLCHAINS (Clang 20 + GCC 4.9) -----
+  CLANG_SOURCE: "https://github.com/ZyCromerZ/Clang/releases/download/20.0.0git-20241222-release/Clang-20.0.0git-20241222.tar.gz"
+  CLANG_BRANCH: ""
+  GCC_GNU: "false"
+  GCC_64_SOURCE: "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9.git"
+  GCC_64_BRANCH: "android12L-release"
+  GCC_32_SOURCE: "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9.git"
+  GCC_32_BRANCH: "android12L-release"
+
+  # ----- DEFCONFIG -----
+  DEFCONFIG_NAME: "vendor/star_defconfig"
+
+  # ----- KERNELSU (ReSukiSU) -----
+  KERNELSU_AUTO_GET: "true"
+  KERNELSU_AUTO_FORK: "resukisu"
+  KERNELSU_METHOD: "shell"
+
+  # ----- CARACTERÍSTICAS ACTIVADAS -----
+  add_susfs: "true"          # SuSFS
+  add_zeromount: "true"      # ZeroMount
+  add_zram: "true"           # ZRAM (opcional)
+  add_kprobes: "true"        # Kprobes (recomendado)
+  add_kernel_su: "true"      # KernelSU (ya incluido)
+  add_sukisu: "false"        # No usar SukiSU, usamos ReSukiSU
+
+  # ----- SUSFS -----
+  SUSFS_ENABLE: "true"
+  SUSFS_FIXED: "false"
+
+  # ----- HERRAMIENTAS DE EMPAQUETADO -----
+  AK3_SOURCE: "https://github.com/osm0sis/AnyKernel3.git"
+  AK3_BRANCH: "master"
+  PACK_METHOD: "Anykernel3"
+  PACK_KMODULES: "false"
+
+  # ----- OTRAS -----
+  EXTRA_CMDS: 'LD=ld.lld LLVM=1 LLVM_IAS=1'
+  PYTHON_VERSION: "3"
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.KERNEL_SOURCE }}
+          ref: ${{ env.KERNEL_BRANCH }}
+          fetch-depth: 1
+          submodules: true
+
+      - name: Setup Environment
+        run: |
+          sudo apt update
+          sudo apt install -y bc bison flex libssl-dev libelf-dev make python3 cpio zip curl wget rsync
+
+      - name: Setup Clang & GCC
+        run: |
+          # Clang
+          mkdir -p clang
+          curl -L ${{ env.CLANG_SOURCE }} | tar -xz -C clang
+          echo "$(pwd)/clang/bin" >> $GITHUB_PATH
+          # GCC 64
+          git clone ${{ env.GCC_64_SOURCE }} -b ${{ env.GCC_64_BRANCH }} gcc64
+          # GCC 32
+          git clone ${{ env.GCC_32_SOURCE }} -b ${{ env.GCC_32_BRANCH }} gcc32
+
+      - name: Integrate ReSukiSU
+        run: |
+          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s main
+
+      - name: Apply Extra Patches (SuSFS, ZeroMount, ZRAM)
+        run: |
+          # SuSFS
+          if [ "${{ env.add_susfs }}" = "true" ]; then
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b kernel-5.4
+            cp susfs4ksu/kernel_patches/fs/susfs.c fs/
+            cp susfs4ksu/kernel_patches/include/linux/susfs.h include/linux/
+            cp susfs4ksu/kernel_patches/include/linux/susfs_def.h include/linux/
+            echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
+          fi
+          # ZeroMount
+          if [ "${{ env.add_zeromount }}" = "true" ]; then
+            git clone https://github.com/Enginex0/ZeroMount.git -b main
+            cp ZeroMount/zeromount.c drivers/zeromount.c
+            echo 'obj-$(CONFIG_ZEROMOUNT) += zeromount.o' >> drivers/Makefile
+          fi
+          # ZRAM (simple activación en defconfig)
+          if [ "${{ env.add_zram }}" = "true" ]; then
+            echo "CONFIG_ZRAM=y" >> arch/arm64/configs/${{ env.DEFCONFIG_NAME }}
+          fi
+
+      - name: Configure Kernel
+        run: |
+          make ${{ env.DEFCONFIG_NAME }}
+          # Forzar opciones de KernelSU/SuSFS
+          ./scripts/config --enable CONFIG_KSU
+          ./scripts/config --enable CONFIG_KSU_SUSFS
+          ./scripts/config --enable CONFIG_ZEROMOUNT
+
+      - name: Build Kernel
+        run: |
+          export ARCH=arm64
+          export CROSS_COMPILE=$(pwd)/gcc64/bin/aarch64-linux-android-
+          export CROSS_COMPILE_ARM32=$(pwd)/gcc32/bin/arm-linux-androideabi-
+          export CLANG_TRIPLE=aarch64-linux-gnu-
+          make -j$(nproc) \
+            CC=clang \
+            LD=ld.lld \
+            AR=llvm-ar \
+            NM=llvm-nm \
+            OBJCOPY=llvm-objcopy \
+            OBJDUMP=llvm-objdump \
+            STRIP=llvm-strip \
+            CROSS_COMPILE=$CROSS_COMPILE \
+            CROSS_COMPILE_ARM32=$CROSS_COMPILE_ARM32 \
+            CLANG_TRIPLE=$CLANG_TRIPLE
+
+      - name: Package with AnyKernel3
+        run: |
+          git clone ${{ env.AK3_SOURCE }} -b ${{ env.AK3_BRANCH }} AnyKernel3
+          if [ -f arch/arm64/boot/Image.gz-dtb ]; then
+            cp arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          elif [ -f arch/arm64/boot/Image.gz ]; then
+            cp arch/arm64/boot/Image.gz AnyKernel3/
+          elif [ -f arch/arm64/boot/Image ]; then
+            cp arch/arm64/boot/Image AnyKernel3/
+          fi
+          cd AnyKernel3
+          zip -r9 ../kernel-zeromount-$(date +%Y%m%d-%H%M).zip . -x ".git*"
+          cd ..
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-zeromount
+          path: "*.zip"
+          retention-days: 7
