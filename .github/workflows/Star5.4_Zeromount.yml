@@ -5,7 +5,7 @@ on:
 
 env:
   # ----- TU KERNEL -----
-  KERNEL_SOURCE: "https://github.com/joel27/android_kernel_xiaomi_sm8350-miui.git"
+  KERNEL_SOURCE: "joel27/android_kernel_xiaomi_sm8350-miui"
   KERNEL_BRANCH: "hyper-14"
 
   # ----- TOOLCHAINS (Clang 20 + GCC 4.9) -----
