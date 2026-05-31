@@ -132,10 +132,6 @@ static struct snd_pcm_hw_constraint_list constraints_sample_rates = {
 	.mask = 0,
 };
 
-static struct asm_softvolume_params soft_params = {0,0,0};
-
-struct msm_pcm_channel_map *chmap_pspd[MSM_FRONTEND_DAI_MM_SIZE][2];
-
 static void msm_pcm_route_event_handler(enum msm_pcm_routing_event event,
 					void *priv_data)
 {
@@ -156,7 +152,6 @@ static void msm_pcm_route_event_handler(enum msm_pcm_routing_event event,
 	}
 }
 
-static int msm_pcm_set_soft_volume_params(struct msm_audio *prtd,struct asm_softvolume_params *soft_vol_params)
 {
 	int rc = 0;
 
