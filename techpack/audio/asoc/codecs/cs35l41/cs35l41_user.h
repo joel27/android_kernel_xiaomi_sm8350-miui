@@ -11,7 +11,7 @@
 #ifndef __CS35L41_USER_H
 #define __CS35L41_USER_H
 
-struct cs35l41_classh_cfg {
+struct classh_cfg {
 	bool classh_bst_override;
 	bool classh_algo_enable;
 	int classh_bst_max_limit;
@@ -22,7 +22,7 @@ struct cs35l41_classh_cfg {
 	int classh_wk_fet_thld;
 };
 
-struct cs35l41_irq_cfg {
+struct irq_cfg {
 	bool is_present;
 	bool irq_pol_inv;
 	bool irq_out_en;
@@ -43,11 +43,11 @@ struct cs35l41_platform_data {
 	int ng_pcm_thld;
 	int ng_delay;
 	int dout_hiz;
-	struct cs35l41_irq_cfg irq_config1;
-	struct cs35l41_irq_cfg irq_config2;
-	struct cs35l41_classh_cfg classh_config;
-        int mnSpkType;
-        struct device_node *spk_id_gpio_p;
+	struct irq_cfg irq_config1;
+	struct irq_cfg irq_config2;
+	struct classh_cfg classh_config;
+	int mnSpkType;
+	struct device_node *spk_id_gpio_p;
 };
 
 struct cs35l41_private {
@@ -86,7 +86,5 @@ struct cs35l41_private {
 void cs35l41_ssr_recovery(struct device *dev, void *data);
 int cs35l41_probe(struct cs35l41_private *cs35l41,
 				struct cs35l41_platform_data *pdata);
-int cs35l41_remove(struct cs35l41_private *cs35l41);
 int spk_id_get(struct device_node *np);
-
 #endif /* __CS35L41_H */
