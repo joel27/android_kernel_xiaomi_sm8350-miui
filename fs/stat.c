@@ -1,3 +1,4 @@
+struct mount;
 // SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/stat.c
@@ -20,6 +21,7 @@
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
+#include <linux/mount.h>
 
 /**
  * generic_fillattr - Fill in the basic attributes from the inode struct

@@ -54,6 +54,13 @@ struct sde_crtc_custom_events {
 			struct sde_irq_callback *irq);
 };
 
+struct vblank_work {
+	struct kthread_work work;
+	int crtc_id;
+	bool enable;
+	struct msm_drm_private *priv;
+};
+
 static int sde_crtc_power_interrupt_handler(struct drm_crtc *crtc_drm,
 	bool en, struct sde_irq_callback *ad_irq);
 static int sde_crtc_idle_interrupt_handler(struct drm_crtc *crtc_drm,
@@ -1417,7 +1424,7 @@ static void _sde_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 	struct drm_plane_state *state;
 	struct sde_crtc_state *cstate;
 	struct sde_plane_state *pstate = NULL;
-	struct plane_state *pstates = NULL;
+	struct plane_state pstates[SDE_PSTATES_MAX];
 	struct sde_format *format;
 	struct sde_hw_ctl *ctl;
 	struct sde_hw_mixer *lm;
@@ -1438,10 +1445,6 @@ static void _sde_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 	ctl = mixer->hw_ctl;
 	lm = mixer->hw_lm;
 	cstate = to_sde_crtc_state(crtc->state);
-	pstates = kcalloc(SDE_PSTATES_MAX,
-			sizeof(struct plane_state), GFP_KERNEL);
-	if (!pstates)
-		return;
 
 	memset(fetch_active, 0, sizeof(fetch_active));
 	memset(zpos_cnt, 0, sizeof(zpos_cnt));
@@ -1475,7 +1478,7 @@ static void _sde_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 		format = to_sde_format(msm_framebuffer_format(pstate->base.fb));
 		if (!format) {
 			SDE_ERROR("invalid format\n");
-			goto end;
+			return;
 		}
 
 		blend_type = sde_plane_get_property(pstate,
@@ -1565,9 +1568,6 @@ static void _sde_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 			clear_bit(SDE_CRTC_DIRTY_DIM_LAYERS, cstate->dirty);
 		}
 	}
-
-end:
-	kfree(pstates);
 }
 
 static void _sde_crtc_swap_mixers_for_right_partial_update(
@@ -3812,8 +3812,6 @@ void sde_crtc_commit_kickoff(struct drm_crtc *crtc,
 	}
 	sde_crtc->play_count++;
 
-	sde_vbif_clear_errors(sde_kms);
-
 	if (is_error) {
 		_sde_crtc_remove_pipe_flush(crtc);
 		_sde_crtc_blend_setup(crtc, old_state, false);
@@ -5006,11 +5004,11 @@ static int sde_crtc_atomic_check(struct drm_crtc *crtc,
 {
 	struct drm_device *dev;
 	struct sde_crtc *sde_crtc;
-	struct plane_state *pstates = NULL;
+	struct plane_state pstates[SDE_PSTATES_MAX];
 	struct sde_crtc_state *cstate;
 	struct drm_display_mode *mode;
 	int rc = 0;
-	struct sde_multirect_plane_states *multirect_plane = NULL;
+	struct sde_multirect_plane_states multirect_plane[SDE_MULTIRECT_PLANE_MAX];
 	struct drm_connector *conn;
 	struct drm_connector_list_iter conn_iter;
 
@@ -5026,18 +5024,6 @@ static int sde_crtc_atomic_check(struct drm_crtc *crtc,
 	if (!state->enable || !state->active) {
 		SDE_DEBUG("crtc%d -> enable %d, active %d, skip atomic_check\n",
 				crtc->base.id, state->enable, state->active);
-		goto end;
-	}
-
-	pstates = kcalloc(SDE_PSTATES_MAX,
-			sizeof(struct plane_state), GFP_KERNEL);
-
-	multirect_plane = kcalloc(SDE_MULTIRECT_PLANE_MAX,
-			sizeof(struct sde_multirect_plane_states),
-			GFP_KERNEL);
-
-	if (!pstates || !multirect_plane) {
-		rc = -ENOMEM;
 		goto end;
 	}
 
@@ -5103,8 +5089,6 @@ static int sde_crtc_atomic_check(struct drm_crtc *crtc,
 		goto end;
 	}
 end:
-	kfree(pstates);
-	kfree(multirect_plane);
 	return rc;
 }
 
@@ -5575,7 +5559,7 @@ static int sde_crtc_atomic_set_property(struct drm_crtc *crtc,
 	uint64_t fence_user_fd;
 	uint64_t __user prev_user_fd;
 
-	if (!crtc || !state || !property) {
+	if (unlikely(!crtc || !state || !property)) {
 		SDE_ERROR("invalid argument(s)\n");
 		return -EINVAL;
 	}
@@ -5586,13 +5570,13 @@ static int sde_crtc_atomic_set_property(struct drm_crtc *crtc,
 	SDE_ATRACE_BEGIN("sde_crtc_atomic_set_property");
 	/* check with cp property system first */
 	ret = sde_cp_crtc_set_property(crtc, property, val);
-	if (ret != -ENOENT)
+	if (unlikely(ret != -ENOENT))
 		goto exit;
 
 	/* if not handled by cp, check msm_property system */
 	ret = msm_property_atomic_set(&sde_crtc->property_info,
 			&cstate->property_state, property, val);
-	if (ret)
+	if (unlikely(ret))
 		goto exit;
 
 	idx = msm_property_index(&sde_crtc->property_info, property);
@@ -5630,7 +5614,7 @@ static int sde_crtc_atomic_set_property(struct drm_crtc *crtc,
 		cstate->bw_split_vote = true;
 		break;
 	case CRTC_PROP_OUTPUT_FENCE:
-		if (!val)
+		if (unlikely(!val))
 			goto exit;
 
 		ret = copy_from_user(&prev_user_fd, (void __user *)val,
@@ -5648,14 +5632,14 @@ static int sde_crtc_atomic_set_property(struct drm_crtc *crtc,
 		if (prev_user_fd == -1) {
 			ret = _sde_crtc_get_output_fence(crtc, state,
 					&fence_user_fd);
-			if (ret) {
+			if (unlikely(ret)) {
 				SDE_ERROR("fence create failed rc:%d\n", ret);
 				goto exit;
 			}
 
 			ret = copy_to_user((uint64_t __user *)(uintptr_t)val,
 					&fence_user_fd, sizeof(uint64_t));
-			if (ret) {
+			if (unlikely(ret)) {
 				SDE_ERROR("copy to user failed rc:%d\n", ret);
 				put_unused_fd(fence_user_fd);
 				ret = -EFAULT;
@@ -6342,6 +6326,72 @@ static void _sde_crtc_destroy_debugfs(struct drm_crtc *crtc)
 }
 #endif /* CONFIG_DEBUG_FS */
 
+static void vblank_ctrl_worker(struct kthread_work *work)
+{
+	struct vblank_work *cur_work = container_of(work,
+					struct vblank_work, work);
+	struct msm_drm_private *priv = cur_work->priv;
+	
+
+	sde_crtc_vblank(priv->crtcs[cur_work->crtc_id], cur_work->enable);
+
+	kfree(cur_work);
+}
+
+static int vblank_ctrl_queue_work(struct msm_drm_private *priv,
+					int crtc_id, bool enable)
+{
+	struct vblank_work *cur_work;
+	struct drm_crtc *crtc;
+	struct kthread_worker *worker;
+
+	if (!priv || crtc_id >= priv->num_crtcs)
+		return -EINVAL;
+
+	cur_work = kzalloc(sizeof(*cur_work), GFP_ATOMIC);
+	if (!cur_work)
+		return -ENOMEM;
+
+	crtc = priv->crtcs[crtc_id];
+
+	kthread_init_work(&cur_work->work, vblank_ctrl_worker);
+	cur_work->crtc_id = crtc_id;
+	cur_work->enable = enable;
+	cur_work->priv = priv;
+	worker = &priv->event_thread[crtc_id].worker;
+
+	kthread_queue_work(worker, &cur_work->work);
+	return 0;
+}
+
+static int sde_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	unsigned int pipe = crtc->index;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+
+	if (!kms)
+		return -ENXIO;
+
+	DBG("dev=%pK, crtc=%u", dev, pipe);
+	return vblank_ctrl_queue_work(priv, pipe, true);
+}
+
+static void sde_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	unsigned int pipe = crtc->index;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+
+	if (!kms)
+		return;
+	DBG("dev=%pK, crtc=%u", dev, pipe);
+
+	vblank_ctrl_queue_work(priv, pipe, false);
+}
+
 static int sde_crtc_late_register(struct drm_crtc *crtc)
 {
 	return _sde_crtc_init_debugfs(crtc);
@@ -6355,6 +6405,8 @@ static void sde_crtc_early_unregister(struct drm_crtc *crtc)
 static const struct drm_crtc_funcs sde_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = sde_crtc_destroy,
+	.enable_vblank = sde_crtc_enable_vblank,
+	.disable_vblank = sde_crtc_disable_vblank,
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_set_property = sde_crtc_atomic_set_property,
 	.atomic_get_property = sde_crtc_atomic_get_property,
