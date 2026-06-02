@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
-/*
-* Add support for 24 and 32bit format for ASM loopback and playback session.
-*/
 
 
 #include <linux/init.h>
@@ -131,7 +127,6 @@ static struct snd_pcm_hw_constraint_list constraints_sample_rates = {
 	.list = supported_sample_rates,
 	.mask = 0,
 };
-
 
 struct msm_pcm_channel_map *chmap_pspd[MSM_FRONTEND_DAI_MM_SIZE][2];
 
@@ -384,13 +379,6 @@ static int msm_pcm_playback_prepare(struct snd_pcm_substream *substream)
 	uint32_t fmt_type = FORMAT_LINEAR_PCM;
 	uint16_t bits_per_sample;
 	uint16_t sample_word_size;
-	uint16_t format_blk_bits_per_sample = 0;
-	uint16_t format_blk_sample_word_size = 0;
-	uint16_t format = 0;
-	uint16_t req_format = 0;
-	uint16_t input_file_format = 0;
-	int port_id = 0, copp_idx = -1;
-	bool found = false;
 
 	if (!component) {
 		pr_err("%s: component is NULL\n", __func__);
@@ -432,21 +420,7 @@ static int msm_pcm_playback_prepare(struct snd_pcm_substream *substream)
 	prtd->audio_client->stream_type = SNDRV_PCM_STREAM_PLAYBACK;
 	prtd->audio_client->fedai_id = soc_prtd->dai_link->id;
 
-	req_format = msm_pcm_asm_cfg_get(soc_prtd->dai_link->id, MSM_ASM_PLAYBACK_MODE);
-	input_file_format = params_format(params);
-
-	pr_debug("%s: fe_id:%d, req_format:%d, input_file_format:%d\n",__func__,
-			soc_prtd->dai_link->id, req_format, input_file_format);
-
-	if(req_format > input_file_format) {
-		format = req_format;
-		pr_debug("%s: enforce ASM bitwidth to %d from %d\n",__func__,
-				format,input_file_format);
-	}else {
-		format = input_file_format;
-	}
-
-	switch (format) {
+	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S32_LE:
 		bits_per_sample = 32;
 		sample_word_size = 32;
@@ -465,10 +439,6 @@ static int msm_pcm_playback_prepare(struct snd_pcm_substream *substream)
 		sample_word_size = 16;
 		break;
 	}
-
-	pr_debug("%s: fe_id:%d, bits_per_sample:%d, sample_word_size:%d\n",__func__,
-			soc_prtd->dai_link->id, bits_per_sample, sample_word_size);
-
 	if (prtd->compress_enable) {
 		fmt_type = FORMAT_GEN_COMPR;
 		pr_debug("%s: Compressed enabled!\n", __func__);
@@ -516,41 +486,11 @@ static int msm_pcm_playback_prepare(struct snd_pcm_substream *substream)
 		pr_err("%s: stream reg failed ret:%d\n", __func__, ret);
 		return ret;
 	}
-
-	found = msm_pcm_routing_get_portid_copp_idx(soc_prtd->dai_link->id,
-				SESSION_TYPE_RX, &port_id, &copp_idx);
-	if (found) {
-		q6adm_update_rtd_info(soc_prtd, port_id, copp_idx,
-					soc_prtd->dai_link->id, 1);
-	} else {
-		pr_err("%s: copp_idx not found\n", __func__);
-	}
-
-	/*Format block is configure with input file bits_per_sample*/
-	switch (input_file_format) {
-	case SNDRV_PCM_FORMAT_S32_LE:
-		format_blk_bits_per_sample = 32;
-		format_blk_sample_word_size = 32;
-		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-		format_blk_bits_per_sample = 24;
-		format_blk_sample_word_size = 32;
-		break;
-	case SNDRV_PCM_FORMAT_S24_3LE:
-		format_blk_bits_per_sample = 24;
-		format_blk_sample_word_size = 24;
-		break;
-	case SNDRV_PCM_FORMAT_S16_LE:
-	default:
-		format_blk_bits_per_sample = 16;
-		format_blk_sample_word_size = 16;
-		break;
-	}
 	if (prtd->compress_enable) {
 		ret = q6asm_media_format_block_gen_compr(
 			prtd->audio_client, runtime->rate,
 			runtime->channels, !prtd->set_channel_map,
-			prtd->channel_map, format_blk_bits_per_sample);
+			prtd->channel_map, bits_per_sample);
 	} else {
 
 		if ((q6core_get_avcs_api_version_per_service(
@@ -560,15 +500,15 @@ static int msm_pcm_playback_prepare(struct snd_pcm_substream *substream)
 			ret = q6asm_media_format_block_multi_ch_pcm_v5(
 				prtd->audio_client, runtime->rate,
 				runtime->channels, !chmap->set_channel_map,
-				chmap->channel_map, format_blk_bits_per_sample,
-				format_blk_sample_word_size, ASM_LITTLE_ENDIAN,
+				chmap->channel_map, bits_per_sample,
+				sample_word_size, ASM_LITTLE_ENDIAN,
 				DEFAULT_QF);
 		} else {
 			ret = q6asm_media_format_block_multi_ch_pcm_v4(
 				prtd->audio_client, runtime->rate,
 				runtime->channels, !prtd->set_channel_map,
-				prtd->channel_map, format_blk_bits_per_sample,
-				format_blk_sample_word_size, ASM_LITTLE_ENDIAN,
+				prtd->channel_map, bits_per_sample,
+				sample_word_size, ASM_LITTLE_ENDIAN,
 				DEFAULT_QF);
 		}
 	}
@@ -633,11 +573,9 @@ static int msm_pcm_capture_prepare(struct snd_pcm_substream *substream)
 		else if (params_format(params) == SNDRV_PCM_FORMAT_S32_LE)
 			bits_per_sample = 32;
 
-		/* ULL mode is not supported in capture path so using LLNP insted of ULL */
+		/* ULL mode is not supported in capture path */
 		if (pdata->perf_mode == LEGACY_PCM_MODE)
 			prtd->audio_client->perf_mode = LEGACY_PCM_MODE;
-		else if (pdata->perf_mode == ULTRA_LOW_LATENCY_PCM_MODE)
-			prtd->audio_client->perf_mode = LOW_LATENCY_PCM_NOPROC_MODE;
 		else
 			prtd->audio_client->perf_mode = LOW_LATENCY_PCM_MODE;
 
@@ -905,10 +843,8 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 	prtd->reset_event = false;
 	runtime->private_data = prtd;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		msm_adsp_init_mixer_ctl_pp_event_queue(soc_prtd);
-		msm_adsp_init_mixer_ctl_adm_pp_event_queue(soc_prtd);
-	}
 
 	/* Vote to update the Rx thread priority to RT Thread for playback */
 	if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK) &&
@@ -1026,8 +962,6 @@ static int msm_pcm_playback_close(struct snd_pcm_substream *substream)
 	uint32_t timeout;
 	int dir = 0;
 	int ret = 0;
-	int port_id = 0, copp_idx = -1;
-	bool found = false;
 
 	pr_debug("%s: cmd_pending 0x%lx\n", __func__, prtd->cmd_pending);
 
@@ -1078,21 +1012,9 @@ static int msm_pcm_playback_close(struct snd_pcm_substream *substream)
 					prtd->audio_client);
 		q6asm_audio_client_free(prtd->audio_client);
 	}
-
-	found = msm_pcm_routing_get_portid_copp_idx(soc_prtd->dai_link->id,
-				SESSION_TYPE_RX, &port_id, &copp_idx);
-	if (found) {
-		q6adm_update_rtd_info(soc_prtd, port_id, copp_idx,
-					soc_prtd->dai_link->id, 0);
-		q6adm_clear_callback();
-	} else {
-		pr_err("%s: copp_idx not found\n", __func__);
-	}
-
 	msm_pcm_routing_dereg_phy_stream(soc_prtd->dai_link->id,
 						SNDRV_PCM_STREAM_PLAYBACK);
 	msm_adsp_clean_mixer_ctl_pp_event_queue(soc_prtd);
-	msm_adsp_clean_mixer_ctl_adm_pp_event_queue(soc_prtd);
 	kfree(prtd);
 	runtime->private_data = NULL;
 	mutex_unlock(&pdata->lock);
@@ -1153,15 +1075,7 @@ static int msm_pcm_capture_copy(struct snd_pcm_substream *substream,
 			xfer = size;
 		offset = prtd->in_frame_info[idx].offset;
 		pr_debug("Offset value = %d\n", offset);
-
-		if (size && offset >= size) {
-			pr_err("%s: Invalid dsp buf offset\n", __func__);
-			ret = -EFAULT;
-			q6asm_cpu_buf_release(OUT, prtd->audio_client);
-			goto fail;
-		}
-
-		if ((size == 0 || size < prtd->pcm_count) && ((offset + size) < prtd->pcm_count)) {
+		if (size == 0 || size < prtd->pcm_count) {
 			memset(bufptr + offset + size, 0, prtd->pcm_count - size);
 			if (fbytes > prtd->pcm_count)
 				size = xfer = prtd->pcm_count;
@@ -2178,7 +2092,7 @@ static int msm_pcm_playback_app_type_cfg_ctl_put(struct snd_kcontrol *kcontrol,
 	u64 fe_id = kcontrol->private_value;
 	int session_type = SESSION_TYPE_RX;
 	int be_id = ucontrol->value.integer.value[3];
-	struct msm_pcm_stream_app_type_cfg cfg_data = {0, 0, 48000, 0, 0, 0};
+	struct msm_pcm_stream_app_type_cfg cfg_data = {0, 0, 48000, 0, 0};
 	int ret = 0;
 
 	cfg_data.app_type = ucontrol->value.integer.value[0];
@@ -2189,13 +2103,12 @@ static int msm_pcm_playback_app_type_cfg_ctl_put(struct snd_kcontrol *kcontrol,
 		cfg_data.copp_token = ucontrol->value.integer.value[4];
 	if (ucontrol->value.integer.value[5] != 0)
 		cfg_data.bit_width = ucontrol->value.integer.value[5];
-	if (ucontrol->value.integer.value[6] != 0)
-		cfg_data.copp_perf_mode = ucontrol->value.integer.value[6];
 	cfg_data.channel = ucontrol->value.integer.value[4];
-	pr_debug("%s: fe_id- %llu session_type- %d be_id- %d app_type- %d acdb_dev_id- %d"
-		"sample_rate- %d copp_token- %d bit_width- %d copp_perf_mode- %d\n",
+
+	pr_err("%s: fe_id- %llu session_type- %d be_id- %d app_type- %d acdb_dev_id- %d"
+		"sample_rate- %d copp_token- %d bit_width- %d, channel is %d\n",
 		__func__, fe_id, session_type, be_id, cfg_data.app_type, cfg_data.acdb_dev_id,
-		cfg_data.sample_rate, cfg_data.copp_token, cfg_data.bit_width, cfg_data.copp_perf_mode, cfg_data.channel);
+		cfg_data.sample_rate, cfg_data.copp_token, cfg_data.bit_width, cfg_data.channel);
 	ret = msm_pcm_routing_reg_stream_app_type_cfg(fe_id, session_type,
 						      be_id, &cfg_data);
 	if (ret < 0)
@@ -2229,11 +2142,10 @@ static int msm_pcm_playback_app_type_cfg_ctl_get(struct snd_kcontrol *kcontrol,
 	ucontrol->value.integer.value[4] = cfg_data.copp_token;
 	ucontrol->value.integer.value[4] = cfg_data.channel;
 	ucontrol->value.integer.value[5] = cfg_data.bit_width;
-	ucontrol->value.integer.value[6] = cfg_data.copp_perf_mode;
 	pr_debug("%s: fe_id- %llu session_type- %d be_id- %d app_type- %d acdb_dev_id- %d"
-		"sample_rate- %d copp_token- %d bit_width- %d copp_perf_mode- %d\n",
+		"sample_rate- %d copp_token- %d bit_width- %d, channel is %d\n",
 		__func__, fe_id, session_type, be_id, cfg_data.app_type, cfg_data.acdb_dev_id,
-		cfg_data.sample_rate, cfg_data.copp_token, cfg_data.bit_width, cfg_data.copp_perf_mode, cfg_data.channel);
+		cfg_data.sample_rate, cfg_data.copp_token, cfg_data.bit_width, cfg_data.channel);
 done:
 	return ret;
 }
@@ -2244,7 +2156,7 @@ static int msm_pcm_capture_app_type_cfg_ctl_put(struct snd_kcontrol *kcontrol,
 	u64 fe_id = kcontrol->private_value;
 	int session_type = SESSION_TYPE_TX;
 	int be_id = ucontrol->value.integer.value[3];
-	struct msm_pcm_stream_app_type_cfg cfg_data = {0, 0, 48000, 0, 0, 0};
+	struct msm_pcm_stream_app_type_cfg cfg_data = {0, 0, 48000, 0, 0};
 	int ret = 0;
 
 	cfg_data.app_type = ucontrol->value.integer.value[0];
@@ -2255,12 +2167,10 @@ static int msm_pcm_capture_app_type_cfg_ctl_put(struct snd_kcontrol *kcontrol,
 		cfg_data.copp_token = ucontrol->value.integer.value[4];
 	if (ucontrol->value.integer.value[5] != 0)
 		cfg_data.bit_width = ucontrol->value.integer.value[5];
-	if (ucontrol->value.integer.value[6] != 0)
-		cfg_data.copp_perf_mode = ucontrol->value.integer.value[6];
-	pr_debug("%s: fe_id- %llu session_type- %d be_id- %d app_type- %d acdb_dev_id- %d"
-		"sample_rate- %d copp_token- %d bit_width- %d copp_perf_mode- %d\n",
+	pr_err("%s: fe_id- %llu session_type- %d be_id- %d app_type- %d acdb_dev_id- %d"
+		"sample_rate- %d copp_token- %d bit_width- %d\n",
 		__func__, fe_id, session_type, be_id, cfg_data.app_type, cfg_data.acdb_dev_id,
-		cfg_data.sample_rate, cfg_data.copp_token, cfg_data.bit_width, cfg_data.copp_perf_mode);
+		cfg_data.sample_rate, cfg_data.copp_token, cfg_data.bit_width);
 	ret = msm_pcm_routing_reg_stream_app_type_cfg(fe_id, session_type,
 						      be_id, &cfg_data);
 	if (ret < 0)
@@ -2293,11 +2203,10 @@ static int msm_pcm_capture_app_type_cfg_ctl_get(struct snd_kcontrol *kcontrol,
 	ucontrol->value.integer.value[3] = be_id;
 	ucontrol->value.integer.value[4] = cfg_data.copp_token;
 	ucontrol->value.integer.value[5] = cfg_data.bit_width;
-	ucontrol->value.integer.value[6] = cfg_data.copp_perf_mode;
 	pr_debug("%s: fe_id- %llu session_type- %d be_id- %d app_type- %d acdb_dev_id- %d"
-		"sample_rate- %d copp_token- %d bit_width- %d copp_perf_mode- %d\n",
+		"sample_rate- %d copp_token- %d bit_width- %d\n",
 		__func__, fe_id, session_type, be_id, cfg_data.app_type, cfg_data.acdb_dev_id,
-		cfg_data.sample_rate, cfg_data.copp_token, cfg_data.bit_width, cfg_data.copp_perf_mode);
+		cfg_data.sample_rate, cfg_data.copp_token, cfg_data.bit_width);
 done:
 	return ret;
 }
@@ -2508,17 +2417,10 @@ static int msm_pcm_channel_mixer_cfg_ctl_put(struct snd_kcontrol *kcontrol,
 	if (chmixer_pspd->enable && prtd && prtd->audio_client) {
 		stream_id = prtd->audio_client->session;
 		be_id = chmixer_pspd->port_idx;
-#ifdef CONFIG_PLATFORM_AUTO
-		msm_pcm_routing_set_channel_mixer_runtime(fe_id, be_id,
-				stream_id,
-				session_type,
-				chmixer_pspd);
-#else
 		msm_pcm_routing_set_channel_mixer_runtime(be_id,
 				stream_id,
 				session_type,
 				chmixer_pspd);
-#endif
 	}
 
 	if (reset_override_out_ch_map)
@@ -3595,7 +3497,6 @@ static int msm_asoc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		pr_err("%s: Could not add pcm Volume Control %d\n",
 			__func__, ret);
-	/* adding soft vol module params mixer control command*/
 	ret = msm_pcm_add_compress_control(rtd);
 	if (ret)
 		pr_err("%s: Could not add pcm Compress Control %d\n",
@@ -3683,9 +3584,6 @@ static int msm_pcm_probe(struct platform_device *pdev)
 			else if (!strcmp(latency_level, "ull-pp"))
 				pdata->perf_mode =
 					ULL_POST_PROCESSING_PCM_MODE;
-			else if (!strcmp(latency_level, "llnp"))
-				pdata->perf_mode =
-					LOW_LATENCY_PCM_NOPROC_MODE;
 		}
 	} else {
 		pdata->perf_mode = LEGACY_PCM_MODE;
