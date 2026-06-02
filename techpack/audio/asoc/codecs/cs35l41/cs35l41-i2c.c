@@ -76,8 +76,6 @@ static int cs35l41_i2c_probe(struct i2c_client *client,
 	if (cs35l41 == NULL)
 		return -ENOMEM;
 
-	mutex_init(&cs35l41->rate_lock);
-
 	cs35l41->dev = dev;
 	cs35l41->irq = client->irq;
 	cs35l41->bus_spi = false;
@@ -107,12 +105,7 @@ static int cs35l41_i2c_remove(struct i2c_client *client)
 {
 	struct cs35l41_private *cs35l41 = i2c_get_clientdata(client);
 
-	regmap_write(cs35l41->regmap, CS35L41_IRQ1_MASK1, 0xFFFFFFFF);
-	wm_adsp2_remove(&cs35l41->dsp);
-	regulator_bulk_disable(cs35l41->num_supplies, cs35l41->supplies);
-	snd_soc_unregister_component(cs35l41->dev);
-	snd_event_client_deregister(cs35l41->dev);
-	return 0;
+	return cs35l41_remove(cs35l41);
 }
 
 static const struct of_device_id cs35l41_of_match[] = {

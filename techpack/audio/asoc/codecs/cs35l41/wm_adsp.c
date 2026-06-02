@@ -9,6 +9,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#define DEBUG
 #include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -1839,7 +1840,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 	struct wmfw_ctl_work *ctl_work;
 	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	const char *region_name;
-	int ret;
+	int ret = 0;
 
 	region_name = wm_adsp_mem_region_name(alg_region->type);
 	if (!region_name) {
@@ -1854,7 +1855,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 			 dsp->num, region_name, alg_region->alg);
 		break;
 	default:
-		ret = snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
+		ret = scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
 				"DSP%d%c %.12s %x", dsp->num, *region_name,
 				wm_adsp_fw_text[dsp->fw], alg_region->alg);
 		break;

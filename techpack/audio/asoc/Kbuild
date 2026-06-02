@@ -139,8 +139,6 @@ COMMON_INC :=	-I$(AUDIO_ROOT)/$(COMMON_DIR)
 
 ############ ASoC Drivers ############
 
-MACHINE_OBJS += msm-common.o
-
 # for SM8150 sound card driver
 ifdef CONFIG_SND_SOC_SM8150
 	MACHINE_OBJS += sm8150.o
@@ -324,7 +322,6 @@ ifeq ($(CONFIG_BOARD_XIAOMI_MONA), y)
 endif
 
 ifeq ($(CONFIG_BOARD_XIAOMI_REDWOOD), y)
-	CDEFINES += -DCONFIG_SND_SOC_AW88263S_M20_TDM
 	CDEFINES += -DCONFIG_TARGET_PRODUCT_REDWOOD
 endif
 
