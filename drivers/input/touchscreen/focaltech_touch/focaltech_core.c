@@ -2769,9 +2769,17 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 	}
 
 	ret = fts_gesture_init(ts_data);
-	if (ret) {
-		FTS_ERROR("init gesture fail");
-	}
+ if (ret) {
+  FTS_ERROR("init gesture fail");
+ }
+
+ /* =========================================================
+  * 🔥 PARCHE TECHMASTER: FORZAR DOBLE TOQUE (DT2W) 🔥
+  * Obligamos al driver a mantener el digitalizador encendido
+  * durante la suspensión para detectar el doble toque.
+  * ========================================================= */
+ ts_data->gesture_mode = 1;
+ FTS_INFO("TechMaster: gesture_mode forzado a 1 para asegurar DT2W");
 
 
 #if FTS_ESDCHECK_EN
