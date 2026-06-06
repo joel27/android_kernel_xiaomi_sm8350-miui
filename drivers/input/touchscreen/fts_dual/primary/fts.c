@@ -8227,7 +8227,7 @@ static int fts_probe(struct spi_device *client)
 #endif
 
 	/* init feature switches (by default all the features are disable, if one feature want to be enabled from the start, set the corresponding value to 1) */
-	info->gesture_enabled = 0;
+	info->gesture_enabled = 1;
 	info->glove_enabled = 0;
 	info->charger_enabled = 0;
 	info->cover_enabled = 0;
