@@ -6525,8 +6525,9 @@ static void fts_suspend_work(struct work_struct *work)
 			__func__);
 	}
 #else
-	if (info->gesture_enabled || fts_need_enter_lp_mode())
-		fts_enableInterrupt();
+	info->gesture_enabled = 1;
+ if (info->gesture_enabled || fts_need_enter_lp_mode())
+  fts_enableInterrupt();
 #endif
 #ifdef CONFIG_FTS_BOOST
 	lpm_disable_for_dev(false, EVENT_INPUT);
