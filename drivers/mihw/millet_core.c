@@ -353,13 +353,12 @@ static ssize_t millet_stat_write(struct file *filp,
 	return count;
 }
 
-static const struct file_operations millet_proc_fops = {
-	.open   = millet_stat_open,
-	.read   = seq_read,
-	.write   = millet_stat_write,
-	.llseek   = seq_lseek,
-	.release   = single_release,
-	.owner   = THIS_MODULE,
+static const struct proc_ops millet_proc_fops = {
+	.proc_open   = millet_stat_open,
+	.proc_read   = seq_read,
+	.proc_write   = millet_stat_write,
+	.proc_lseek   = seq_lseek,
+	.proc_release   = single_release,
 };
 
 static int millet_version_show(struct seq_file *m, void *v)
@@ -373,12 +372,11 @@ static int millet_version_open(struct inode *inode, struct file *file)
 	return single_open(file, millet_version_show, NULL);
 }
 
-static const struct file_operations millet_version_fops = {
-	.open   = millet_version_open,
-	.read   = seq_read,
-	.llseek   = seq_lseek,
-	.release   = single_release,
-	.owner   = THIS_MODULE,
+static const struct proc_ops millet_version_fops = {
+	.proc_open   = millet_version_open,
+	.proc_read   = seq_read,
+	.proc_lseek   = seq_lseek,
+	.proc_release   = single_release,
 };
 
 int register_millet_hook(int type, recv_hook recv_from,
