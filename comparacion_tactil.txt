@@ -1,0 +1,7 @@
+--- COMPARACION DRIVER TACTIL (DT2W) ---
+
+=== Comparando hyper-14 vs endcredits/ASB-2024-10-05 ===
+
+=== Comparando hyper-14 vs endcredits/backup ===
+
+=== Comparando hyper-14 vs endcredits/feat-lz4p ===
