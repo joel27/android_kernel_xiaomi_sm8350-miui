@@ -4,7 +4,7 @@
 #include <linux/signal.h>
 #include "millet.h"
 
-#include "../../kernel/cgroup/cgrp_oem.h"
+#include "millet/cgrp_oem.h"
 
 extern int millet_can_attach(struct cgroup_taskset *tset);
 
