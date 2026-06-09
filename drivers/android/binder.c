@@ -74,6 +74,7 @@
 
 #include "binder_internal.h"
 #include "binder_trace.h"
+#include "../mihw/millet/binder_oem.h"  // <--- AÑADE ESTA LÍNEA
 #include <trace/hooks/binder.h>
 
 static HLIST_HEAD(binder_deferred_list);
@@ -7020,5 +7021,60 @@ device_initcall(binder_init);
 
 #define CREATE_TRACE_POINTS
 #include "binder_trace.h"
+
+// ... código anterior ...
+
+device_initcall(binder_init);
+
+#define CREATE_TRACE_POINTS
+#include "binder_trace.h"
+
+/* --- OEM Binder Hooks --- */
+struct oem_binder_hook oem_binder_hook_set = {0};
+EXPORT_SYMBOL(oem_binder_hook_set);
+
+void oem_register_binder_hook(struct oem_binder_hook *set)
+{
+    if (!set)
+        return;
+
+    oem_binder_hook_set.oem_wahead_thresh = set->oem_wahead_thresh;
+    oem_binder_hook_set.oem_wahead_space = set->oem_wahead_space;
+    oem_binder_hook_set.oem_reply_hook = set->oem_reply_hook;
+    oem_binder_hook_set.oem_trans_hook = set->oem_trans_hook;
+    oem_binder_hook_set.oem_wait4_hook = set->oem_wait4_hook;
+    oem_binder_hook_set.oem_query_st_hook = set->oem_query_st_hook;
+    oem_binder_hook_set.oem_buf_overflow_hook = set->oem_buf_overflow_hook;
+}
+EXPORT_SYMBOL(oem_register_binder_hook);
+
+void query_binder_app_stat(int uid)
+{
+    struct binder_proc *proc;
+    bool idle_f = true;
+    enum BINDER_STAT stat;
+
+    if (!oem_binder_hook_set.oem_query_st_hook)
+        return;
+
+    mutex_lock(&binder_procs_lock);
+    hlist_for_each_entry(proc, &binder_procs, proc_node) {
+        if (proc != NULL && proc->tsk
+            && (task_uid(proc->tsk).val == uid)) {
+            if (query_binder_stat(proc) != BINDER_IN_IDLE)
+                idle_f = false;
+        }
+    }
+
+    if (idle_f)
+        stat = BINDER_IN_IDLE;
+    else
+        stat = BINDER_IN_BUSY;
+
+    oem_binder_hook_set.oem_query_st_hook(uid, current, 0, current->pid, stat);
+    mutex_unlock(&binder_procs_lock);
+}
+EXPORT_SYMBOL(query_binder_app_stat);
+/* ------------------------ */
 
 MODULE_LICENSE("GPL v2");
