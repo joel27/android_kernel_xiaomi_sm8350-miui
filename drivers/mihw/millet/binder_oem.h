@@ -1,6 +1,7 @@
 #ifndef BINDER_OEM_H
 #define BINDER_OEM_H
 #include <linux/sched.h>
+#include "uapi/millet.h"
 
 typedef void (*type_binder_send_hook)(struct task_struct *dst, struct task_struct *src,
 		int caller_tid, bool oneway, int code);
