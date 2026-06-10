@@ -6513,21 +6513,25 @@ static void fts_suspend_work(struct work_struct *work)
 	}
 #endif
 	fts_disableInterrupt();
-	info->resume_bit = 0;
-	fts_mode_handler(info, 0);
-	release_all_touches(info);
+        info->resume_bit = 0;
 
-	info->sensor_sleep = true;
+#ifndef CONFIG_FACTORY_BUILD
+        info->gesture_enabled = 1;
+#endif
+
+        fts_mode_handler(info, 0);
+        release_all_touches(info);
+
+        info->sensor_sleep = true;
 #ifdef CONFIG_FACTORY_BUILD
-	retval = fts_enable_reg(info, false);
-	if (retval < 0) {
-		logError(1, "%s %s: ERROR Failed to enable regulators\n", tag,
-			__func__);
-	}
+        retval = fts_enable_reg(info, false);
+        if (retval < 0) {
+                logError(1, "%s %s: ERROR Failed to enable regulators\n", tag,
+                        func);
+        }
 #else
-	info->gesture_enabled = 1;
- if (info->gesture_enabled || fts_need_enter_lp_mode())
-  fts_enableInterrupt();
+        if (info->gesture_enabled || fts_need_enter_lp_mode())
+                fts_enableInterrupt();
 #endif
 #ifdef CONFIG_FTS_BOOST
 	lpm_disable_for_dev(false, EVENT_INPUT);
