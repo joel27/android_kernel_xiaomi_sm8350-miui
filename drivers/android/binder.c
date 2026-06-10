@@ -7041,6 +7041,67 @@ void oem_register_binder_hook(struct oem_binder_hook *set)
 }
 EXPORT_SYMBOL(oem_register_binder_hook);
 
+static enum BINDER_STAT query_binder_stat(struct binder_proc *proc)
+{
+ struct rb_node *n = NULL;
+ struct binder_thread *thread = NULL;
+ int pid, tid, uid = 0;
+ enum BINDER_STAT stat;
+ struct task_struct *tsk;
+
+ if (!oem_binder_hook_set.oem_query_st_hook)
+  return BINDER_IN_IDLE;
+
+ if (proc->tsk)
+  uid = task_uid(proc->tsk).val;
+ else
+  return BINDER_IN_IDLE;
+
+ binder_inner_proc_lock(proc);
+ if (proc->tsk && !binder_worklist_empty_ilocked(&proc->todo)) {
+  tsk = proc->tsk;
+  tid = tsk->pid;
+  pid = task_pid_nr(tsk);
+  stat = BINDER_PROC_IN_BUSY;
+  goto busy;
+ }
+
+ for (n = rb_first(&proc->threads); n != NULL; n = rb_next(n)) {
+  thread = rb_entry(n, struct binder_thread, rb_node);
+  if (!thread->task)
+   continue;
+
+  if (!binder_worklist_empty_ilocked(&thread->todo)) {
+   tsk = thread->task;
+   pid = task_tgid_nr(tsk);
+   tid = thread->pid;
+   stat = BINDER_THREAD_IN_BUSY;
+   goto busy;
+  }
+
+  if (!thread->transaction_stack)
+   continue;
+
+  spin_lock(&thread->transaction_stack->lock);
+  if (thread->transaction_stack->to_thread == thread) {
+   tsk = thread->task;
+   pid = task_tgid_nr(tsk);
+   tid = thread->pid;
+   stat = BINDER_IN_TRANSACTION;
+   spin_unlock(&thread->transaction_stack->lock);
+   goto busy;
+  }
+  spin_unlock(&thread->transaction_stack->lock);
+ }
+
+ binder_inner_proc_unlock(proc);
+ return BINDER_IN_IDLE;
+busy:
+ binder_inner_proc_unlock(proc);
+ oem_binder_hook_set.oem_query_st_hook(uid, tsk, tid, pid, stat);
+ return stat;
+}
+
 void query_binder_app_stat(int uid)
 {
     struct binder_proc *proc;
@@ -7051,7 +7112,8 @@ void query_binder_app_stat(int uid)
         return;
 
     mutex_lock(&binder_procs_lock);
-    hlist_for_each_entry(proc, &binder_procs, proc_node) {
+
+hlist_for_each_entry(proc, &binder_procs, proc_node) {
         if (proc != NULL && proc->tsk
             && (task_uid(proc->tsk).val == uid)) {
             if (query_binder_stat(proc) != BINDER_IN_IDLE)
