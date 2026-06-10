@@ -389,7 +389,7 @@ static void cyttsp5_mt_send_dummy_event(struct cyttsp5_core_data *cd,
 		key_value = KEY_F6;
 	break;
 	case GESTURE_SINGLE_SLIDE_DE_RX:
-		key_value = KEY_F7;
+		key_value = KEY_WAKEUP;
 	break;
 	case GESTURE_SINGLE_SLIDE_IN_RX:
 		key_value = KEY_F8;
