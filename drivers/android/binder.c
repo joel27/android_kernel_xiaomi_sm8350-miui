@@ -7022,13 +7022,6 @@ device_initcall(binder_init);
 #define CREATE_TRACE_POINTS
 #include "binder_trace.h"
 
-// ... código anterior ...
-
-device_initcall(binder_init);
-
-#define CREATE_TRACE_POINTS
-#include "binder_trace.h"
-
 /* --- OEM Binder Hooks --- */
 struct oem_binder_hook oem_binder_hook_set = {0};
 EXPORT_SYMBOL(oem_binder_hook_set);
