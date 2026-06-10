@@ -413,6 +413,15 @@ static int cyttsp5_mt_attention(struct device *dev)
 	struct cyttsp5_mt_data *md = &cd->md;
 	int rc;
 
+	// PARCHE DT2W: Si la pantalla está suspendida, forzar despertar inmediato
+	if (cd->pm_suspend) {
+		input_report_key(md->input, KEY_WAKEUP, 1);
+		input_sync(md->input);
+		input_report_key(md->input, KEY_WAKEUP, 0);
+		input_sync(md->input);
+		return 0;
+	}
+
 	if (md->si->xy_mode[2] !=  md->si->desc.tch_report_id)
 		return 0;
 
