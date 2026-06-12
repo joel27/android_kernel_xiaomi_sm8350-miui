@@ -3755,15 +3755,7 @@ exit:
 
 	/* Get gesture id and gesture data length */
 	cd->gesture_id = cd->input_buf[3];
-	// PARCHE DT2W: Forzar KEY_WAKEUP inmediato si es doble toque (Gesto 1 o 7)
-	if (cd->gesture_id == 1 || cd->gesture_id == 7) {
-		if (cd->md.input) {
-			input_report_key(cd->md.input, KEY_WAKEUP, 1);
-			input_sync(cd->md.input);
-			input_report_key(cd->md.input, KEY_WAKEUP, 0);
-			input_sync(cd->md.input);
-		}
-	}
+
 	report_length = (cd->input_buf[1] << 8) | (cd->input_buf[0]);
 	cd->gesture_data_length = report_length - 4;
 
