@@ -230,9 +230,9 @@ And public attribution of xiaomi platforms(like venus and so and)
 			cy,rst_gpio = <&tlmm 125 0x0>;
 			cy,hid_desc_register = <1>;
 			/*CY_CORE_FLAG_RESTORE_PARAMETERS */
-			cy,flags = <4>;
+			cy,flags = <0>;
 			/* CY_CORE_EWG_NONE */
-			cy,easy_wakeup_gesture = <0>;
+			cy,easy_wakeup_gesture = <1>;
 
 			cy,mt {
 				cy,name = "cyttsp5_mt";
