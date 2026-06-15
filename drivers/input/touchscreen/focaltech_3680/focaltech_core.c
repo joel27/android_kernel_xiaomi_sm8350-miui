@@ -2836,6 +2836,10 @@ static int fts_ts_suspend(struct device *dev)
 #ifdef CONFIG_FACTORY_BUILD
     ts_data->poweroff_on_sleep = true;
 #endif
+
+    ts_data->gesture_support = ENABLE;
+    ts_data->poweroff_on_sleep = false;
+
     FTS_INFO("fts_ts_suspend gesture_support:%d  poweroff_on_sleep:%d ",ts_data->gesture_support,ts_data->poweroff_on_sleep);
     if (ts_data->gesture_support && !ts_data->poweroff_on_sleep) {
         fts_gesture_suspend(ts_data);
