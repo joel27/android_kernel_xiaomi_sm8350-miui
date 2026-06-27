@@ -2604,10 +2604,6 @@ static int fts_ts_suspend(struct device *dev)
 #ifdef CONFIG_FACTORY_BUILD
 	ts_data->poweroff_on_sleep = true;
 #endif
-	// --- PARCHE DT2W HYPEROS SPI ---
-    ts_data->gesture_mode = ENABLE;
-    ts_data->poweroff_on_sleep = false;
-    // -------------------------------
 
     if (ts_data->gesture_mode && !ts_data->poweroff_on_sleep) {
         fts_gesture_suspend(ts_data);
