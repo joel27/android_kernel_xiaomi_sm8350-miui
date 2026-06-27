@@ -4619,8 +4619,8 @@ reset:
 		goto exit;
 	}
 
-	if (!cd->features.easywake)
-		cd->easy_wakeup_gesture = CY_CORE_EWG_NONE;
+	if (!cd->features.easywake && cd->cpdata->easy_wakeup_gesture == CY_CORE_EWG_NONE)
+  cd->easy_wakeup_gesture = CY_CORE_EWG_NONE;
 
 	rc = cyttsp5_hid_output_get_sysinfo_(cd);
 	if (rc) {
