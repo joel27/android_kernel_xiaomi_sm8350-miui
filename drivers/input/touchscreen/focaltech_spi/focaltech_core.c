@@ -906,17 +906,19 @@ static irqreturn_t fts_irq_handler(int irq, void *data)
 		}
 	}
 #endif
-	pm_stay_awake(fts_data->dev);
-	if (fts_data->enable_touch_raw) {
-		fts_data->tp_frame.tv = get_timeval(ktime_get());
-		fts_read_raw(fts_data, fts_data->tp_frame.tp_raw, read_size);
-		fts_data->tp_frame.tv0 = get_timeval(ktime_get());
-		copy_touch_rawdata((char *)(&fts_data->tp_frame), sizeof(struct tp_frame));
-		update_touch_rawdata();
-	} else {
-		fts_irq_read_report();
-	}
-	pm_relax(fts_data->dev);
+	if (!fts_data->suspended)
+    pm_stay_awake(fts_data->dev);
+if (fts_data->enable_touch_raw) {
+    fts_data->tp_frame.tv = get_timeval(ktime_get());
+    fts_read_raw(fts_data, fts_data->tp_frame.tp_raw, read_size);
+    fts_data->tp_frame.tv0 = get_timeval(ktime_get());
+    copy_touch_rawdata((char *)(&fts_data->tp_frame), sizeof(struct tp_frame));
+    update_touch_rawdata();
+} else {
+    fts_irq_read_report();
+}
+if (!fts_data->suspended)
+    pm_relax(fts_data->dev);
 	return IRQ_HANDLED;
 }
 
