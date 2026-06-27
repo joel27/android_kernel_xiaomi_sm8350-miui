@@ -2605,8 +2605,9 @@ static int fts_ts_suspend(struct device *dev)
 	ts_data->poweroff_on_sleep = true;
 #endif
 
-    if (ts_data->gesture_mode && !ts_data->poweroff_on_sleep) {
-        fts_gesture_suspend(ts_data);
+    // ✅ CORRECTO: dejar que el sistema gestione los flags
+if (ts_data->gesture_mode && !ts_data->poweroff_on_sleep) {
+    fts_gesture_suspend(ts_data);
 	} else {
 		fts_irq_disable();
 
