@@ -8129,12 +8129,16 @@ static int fts_pm_suspend(struct device *dev)
 		return 0;
 	}
 #ifndef FTS_FOD_AREA_REPORT
-	if (device_may_wakeup(dev) && info->gesture_enabled) {
-		logError(1, "%s enable touch irq wake\n", tag);
-		enable_irq_wake(info->client->irq);
-	}
+    if (device_may_wakeup(dev) && info->gesture_enabled) {
+        logError(1, "%s enable touch irq wake\n", tag);
+        enable_irq_wake(info->client->irq);
+    }
 #else
-	enable_irq_wake(info->client->irq);
+    if (info->gesture_enabled || fts_need_enter_lp_mode()) {
+        logError(1, "%s enable touch irq wake\n", tag);
+        enable_irq_wake(info->client->irq);
+        info->irq_wake = true;
+    }
 #endif
 	info->tp_pm_suspend = true;
 	reinit_completion(&info->pm_resume_completion);
@@ -8148,12 +8152,16 @@ static int fts_pm_resume(struct device *dev)
 	struct fts_ts_info *info = dev_get_drvdata(dev);
 
 #ifndef FTS_FOD_AREA_REPORT
-	if (device_may_wakeup(dev) && info->gesture_enabled) {
-		logError(1, "%s disable touch irq wake\n", tag);
-		disable_irq_wake(info->client->irq);
-	}
+    if (device_may_wakeup(dev) && info->gesture_enabled) {
+        logError(1, "%s disable touch irq wake\n", tag);
+        disable_irq_wake(info->client->irq);
+    }
 #else
-	disable_irq_wake(info->client->irq);
+    if (info->irq_wake) {
+        logError(1, "%s disable touch irq wake\n", tag);
+        disable_irq_wake(info->client->irq);
+        info->irq_wake = false;
+    }
 #endif
 	info->tp_pm_suspend = false;
 	complete(&info->pm_resume_completion);
