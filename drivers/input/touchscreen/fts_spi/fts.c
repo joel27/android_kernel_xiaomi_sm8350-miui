@@ -8628,6 +8628,7 @@ static int fts_probe(struct spi_device *client)
 	info->grip_pixel = info->grip_pixel_def;
 
 	info->resume_bit = 1;
+	info->gesture_enabled = 1;
 	info->lockdown_is_ok = false;
 	info->notifier = fts_noti_block;
 #ifdef CONFIG_FTS_POWERSUPPLY_CB
