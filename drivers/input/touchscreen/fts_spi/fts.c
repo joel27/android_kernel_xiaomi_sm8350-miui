@@ -8156,7 +8156,11 @@ static int fts_pm_resume(struct device *dev)
 		disable_irq_wake(info->client->irq);
 	}
 #else
-	disable_irq_wake(info->client->irq);
+	if (info->irq_wake) {
+		logError(1, "%s disable touch irq wake\n", tag);
+		disable_irq_wake(info->client->irq);
+		info->irq_wake = false;
+	}
 #endif
 	info->tp_pm_suspend = false;
 	complete(&info->pm_resume_completion);
