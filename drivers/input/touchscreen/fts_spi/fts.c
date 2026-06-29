@@ -8133,7 +8133,11 @@ static int fts_pm_suspend(struct device *dev)
 		enable_irq_wake(info->client->irq);
 	}
 #else
-	enable_irq_wake(info->client->irq);
+	if (info->gesture_enabled || fts_need_enter_lp_mode()) {
+		logError(1, "%s enable touch irq wake\n", tag);
+		enable_irq_wake(info->client->irq);
+		info->irq_wake = true;
+	}
 #endif
 	info->tp_pm_suspend = true;
 	reinit_completion(&info->pm_resume_completion);
