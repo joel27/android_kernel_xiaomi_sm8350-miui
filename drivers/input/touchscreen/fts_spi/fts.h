@@ -425,6 +425,7 @@ struct fts_ts_info {
 	struct tp_frame thp_frame;
 	int aod_status;
 	bool tp_pm_suspend;
+	bool irq_wake; // track irq_wake state for conditional disable
 	struct completion pm_resume_completion;
 	bool gamemode_enable;
 	int width_major;
