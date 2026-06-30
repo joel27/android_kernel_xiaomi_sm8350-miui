@@ -1225,3 +1225,9 @@ static noinline void __init kernel_init_freeable(void)
 
 	integrity_load_keys();
 }
+
+/* Fix for undefined symbol: __stack_chk_guard with Clang */
+#ifndef __stack_chk_guard
+unsigned long __stack_chk_guard;
+EXPORT_SYMBOL(__stack_chk_guard);
+#endif
