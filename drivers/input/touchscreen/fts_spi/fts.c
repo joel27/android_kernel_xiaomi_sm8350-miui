@@ -6846,25 +6846,30 @@ static void fts_suspend_work(struct work_struct *work)
  * This function schedule a suspend or resume work according to the event received.
  */
 static int fts_drm_state_chg_callback(struct notifier_block *nb,
-				      unsigned long val, void *data)
+			      unsigned long val, void *data)
 {
 	struct fts_ts_info *info =
 	    container_of(nb, struct fts_ts_info, notifier);
-	struct drm_panel_notifier *evdata = data;
+	struct mi_disp_notifier *evdata = data;
 	unsigned int blank;
 
-	if (!(val == DRM_PANEL_EARLY_EVENT_BLANK ||
-		val == DRM_PANEL_EVENT_BLANK)) {
-		logError(1, "event(%lu) do not need process\n", val);
+	if (!(val == MI_DISP_DPMS_EARLY_EVENT ||
+		val == MI_DISP_DPMS_EVENT)) {
 		return 0;
 	}
 
 	if (evdata && evdata->data && info) {
 
+		if (evdata->disp_id != MI_DISPLAY_PRIMARY)
+			return NOTIFY_OK;
+
 		blank = *(int *)(evdata->data);
 		logError(1, "%s %s: val:%lu,blank:%u\n", tag, __func__, val, blank);
 
-		if (val == DRM_PANEL_EVENT_BLANK && (blank == DRM_PANEL_BLANK_POWERDOWN)) {
+		if (val == MI_DISP_DPMS_EARLY_EVENT &&
+			(blank == MI_DISP_DPMS_POWERDOWN ||
+			 blank == MI_DISP_DPMS_LP1 ||
+			 blank == MI_DISP_DPMS_LP2)) {
 			if (info->sensor_sleep)
 				return NOTIFY_OK;
 
@@ -6872,7 +6877,7 @@ static int fts_drm_state_chg_callback(struct notifier_block *nb,
 
 			flush_workqueue(info->event_wq);
 			queue_work(info->event_wq, &info->suspend_work);
-		} else if (val == DRM_PANEL_EVENT_BLANK && blank == DRM_PANEL_BLANK_UNBLANK) {
+		} else if (val == MI_DISP_DPMS_EVENT && blank == MI_DISP_DPMS_ON) {
 			if (!info->sensor_sleep)
 				return NOTIFY_OK;
 
