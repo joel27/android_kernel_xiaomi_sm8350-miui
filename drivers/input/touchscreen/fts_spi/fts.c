@@ -5509,7 +5509,7 @@ static int fts_init_sensing(struct fts_ts_info *info)
 	int error = 0;
 #if defined(CONFIG_DRM_PANEL)
 	if (active_panel)
-		error |= drm_panel_notifier_register(active_panel, &info->notifier);
+		error |= mi_disp_register_client(&info->notifier);
 #endif
 	error |= fts_interrupt_install(info);
 	error |= fts_mode_handler(info, 0);
