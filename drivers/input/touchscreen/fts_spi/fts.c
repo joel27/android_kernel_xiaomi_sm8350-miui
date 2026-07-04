@@ -6852,6 +6852,7 @@ static int fts_drm_state_chg_callback(struct notifier_block *nb,
 	    container_of(nb, struct fts_ts_info, notifier);
 	struct mi_disp_notifier *evdata = data;
 	unsigned int blank;
+	pr_err("TECHMASTER_DT2W_DEBUG: callback fired! val=%lu info=%p\n", val, info); 
 
 	if (!(val == MI_DISP_DPMS_EARLY_EVENT ||
 		val == MI_DISP_DPMS_EVENT)) {
