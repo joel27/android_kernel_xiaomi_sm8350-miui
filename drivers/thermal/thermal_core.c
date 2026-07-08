@@ -1978,8 +1978,7 @@ static ssize_t
 thermal_board_sensor_temp_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
-	snprintf(board_sensor_temp, PAGE_SIZE, buf);
-
+	strlcpy(board_sensor_temp, buf, sizeof(board_sensor_temp));
 	return len;
 }
 
@@ -1997,8 +1996,7 @@ static ssize_t
 thermal_board_sensor_second_temp_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
-	snprintf(board_sensor_second_temp, PAGE_SIZE, buf);
-
+	strlcpy(board_sensor_second_temp, buf, sizeof(board_sensor_second_temp));
 	return len;
 }
 
