@@ -325,10 +325,14 @@ static int max31760_resume(struct device *dev)
 
 	dev_dbg(dev, "enter resume now\n");
 	if (pdata) {
+		int ret;
+
 		atomic_set(&pdata->in_suspend, 0);
 		mutex_lock(&pdata->update_lock);
 		max31760_enable_gpio(pdata, 1);
-		regulator_enable(pdata->vdd_reg);
+		ret = regulator_enable(pdata->vdd_reg);
+		if (ret)
+			dev_warn(dev, "failed to enable vdd_reg: %d\n", ret);
 		max31760_write_byte(pdata, MAX31760_CTRL_REG1, 0x19);
 		max31760_write_byte(pdata, MAX31760_CTRL_REG2, 0x11);
 		max31760_write_byte(pdata, MAX31760_CTRL_REG3, 0x31);
