@@ -1887,7 +1887,7 @@ static ssize_t
 thermal_boost_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, boost_buf);
+	return snprintf(buf, PAGE_SIZE, "%s", boost_buf);
 }
 
 static ssize_t
@@ -1971,7 +1971,7 @@ static ssize_t
 thermal_board_sensor_temp_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, board_sensor_temp);
+	return snprintf(buf, PAGE_SIZE, "%s", board_sensor_temp);
 }
 
 static ssize_t
@@ -1989,7 +1989,7 @@ static ssize_t
 thermal_board_sensor_second_temp_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, board_sensor_second_temp);
+	return snprintf(buf, PAGE_SIZE, "%s", board_sensor_second_temp);
 }
 
 static ssize_t
