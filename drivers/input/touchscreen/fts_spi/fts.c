@@ -6429,6 +6429,10 @@ static int fts_set_cur_value(int mode, int value)
 	}
 	if (mode == Touch_FodIcon_Enable && fts_info && value >= 0)
 		return fts_set_fod_icon_status(value);
+	if (mode == 25 && fts_info && value >= 0) {
+		logError(1, "%s %s: mode 25 (wake-prepare) value=%d - acknowledged\n", tag, __func__, value);
+		return 0;
+	}
 	if (mode == Touch_Nonui_Mode && fts_info && value >= 0) {
 		fts_info->nonui_status = value;
 		schedule_work(&fts_info->switch_mode_work);
