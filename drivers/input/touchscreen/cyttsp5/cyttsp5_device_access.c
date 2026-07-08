@@ -1812,7 +1812,7 @@ static ssize_t cyttsp5_cmcp_test_store(struct device *dev,
 		dad->cmcp_force_calibrate = force_calibrate;
 		parade_debug(dev, DEBUG_LEVEL_2,
 			"%s: Test item is %s; Range check is %s; Force calibrate is %s.\n",
-			func,
+			__func__,
 			cmcp_test_case_array[test_item],
 			cmcp_test_range_check_array[range_check],
 			cmcp_test_force_cal_array[force_calibrate]);
