@@ -2065,14 +2065,15 @@ int save_engineering_data(struct device *dev, char *out_buf, int index,
 						index = prepare_print_data(
 								out_buf, &i,
 								index, 1);
-					for (j = 0; j < tx_num; j++)
+					for (j = 0; j < tx_num; j++) {
 						index = prepare_print_data(
 							out_buf,
 				&cmcp_info->cm_sensor_row_delta[j*rx_num+i-1],
 							index, 1);
 						index = prepare_print_string(
-							out_buf,
-							"\n", index);
+								out_buf,
+								"\n", index);
+					}
 					}
 
 				/*print pass/fail Sensor Cm Validation*/
