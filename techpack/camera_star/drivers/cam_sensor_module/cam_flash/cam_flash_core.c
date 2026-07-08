@@ -1277,14 +1277,15 @@ update_req_mgr:
 			add_req.skip_before_applying = 0;
 
 		if (fctrl->bridge_intf.crm_cb &&
-			fctrl->bridge_intf.crm_cb->add_req)
+			fctrl->bridge_intf.crm_cb->add_req) {
 			rc = fctrl->bridge_intf.crm_cb->add_req(&add_req);
-			if  (rc) {
+			if (rc) {
 				CAM_ERR(CAM_FLASH,
 					"Failed in adding request: %llu to request manager",
 					csl_packet->header.request_id);
 				return rc;
 			}
+		}
 		CAM_DBG(CAM_FLASH, "add req to req_mgr= %lld", add_req.req_id);
 	}
 	return rc;
