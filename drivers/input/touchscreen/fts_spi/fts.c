@@ -5508,10 +5508,9 @@ int fts_chip_powercycle(struct fts_ts_info *info)
 static int fts_init_sensing(struct fts_ts_info *info)
 {
 	int error = 0;
-#if defined(CONFIG_DRM_PANEL)
-	if (active_panel)
-		error |= mi_disp_register_client(&info->notifier);
-#endif
+	pr_err("TECHMASTER_DT2W_DEBUG: about to call mi_disp_register_client, info=%p notifier.notifier_call=%p\n", info, info->notifier.notifier_call);
+	error |= mi_disp_register_client(&info->notifier);
+	pr_err("TECHMASTER_DT2W_DEBUG: mi_disp_register_client returned %d\n", error);
 	error |= fts_interrupt_install(info);
 	error |= fts_mode_handler(info, 0);
 #ifdef FTS_FOD_AREA_REPORT
