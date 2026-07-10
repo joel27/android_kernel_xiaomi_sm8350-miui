@@ -57,6 +57,7 @@
 #include <linux/backlight.h>
 #include <drm/drm_panel.h>
 #include <drm/mi_disp_notifier.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/fb.h>
 #include <linux/proc_fs.h>
@@ -8145,6 +8146,19 @@ static int fts_pm_suspend(struct device *dev)
 #endif
 	info->tp_pm_suspend = true;
 	reinit_completion(&info->pm_resume_completion);
+
+	/* Force the SPI controller (a8c000.spi) to synchronously drop to
+	 * runtime-suspended state right now, instead of waiting for its
+	 * 250ms autosuspend delay. Without this, system-wide suspend can
+	 * race against the controller's pending autosuspend timer and
+	 * abort with -EBUSY if triggered within that window. */
+	if (info->client && info->client->controller &&
+	    info->client->controller->dev.parent) {
+		struct device *spi_ctrl_dev = info->client->controller->dev.parent;
+
+		pm_runtime_get_sync(spi_ctrl_dev);
+		pm_runtime_put_sync(spi_ctrl_dev);
+	}
 
 	return 0;
 
