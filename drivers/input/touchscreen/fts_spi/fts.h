@@ -81,8 +81,6 @@
 #define FTS_FOD_AREA_REPORT
 #define FTS_DEBUG_FS
 
-#define DEBUG
-
 /*#define USE_ONE_FILE_NODE*/
 
 #ifndef FW_UPDATE_ON_PROBE
