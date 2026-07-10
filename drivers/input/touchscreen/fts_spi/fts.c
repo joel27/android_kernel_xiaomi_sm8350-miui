@@ -6426,10 +6426,6 @@ static int fts_set_cur_value(int mode, int value)
 	}
 	if (mode == Touch_FodIcon_Enable && fts_info && value >= 0)
 		return fts_set_fod_icon_status(value);
-	if (mode == 25 && fts_info && value >= 0) {
-		logError(1, "%s %s: mode 25 (wake-prepare) value=%d - acknowledged\n", tag, __func__, value);
-		return 0;
-	}
 	if (mode == Touch_Nonui_Mode && fts_info && value >= 0) {
 		fts_info->nonui_status = value;
 		schedule_work(&fts_info->switch_mode_work);
@@ -6853,8 +6849,7 @@ static int fts_drm_state_chg_callback(struct notifier_block *nb,
 	struct fts_ts_info *info =
 	    container_of(nb, struct fts_ts_info, notifier);
 	struct mi_disp_notifier *evdata = data;
-	unsigned int blank;
-	pr_err("TECHMASTER_DT2W_DEBUG: callback fired! val=%lu info=%p\n", val, info); 
+	unsigned int blank; 
 
 	if (!(val == MI_DISP_DPMS_EARLY_EVENT ||
 		val == MI_DISP_DPMS_EVENT)) {
