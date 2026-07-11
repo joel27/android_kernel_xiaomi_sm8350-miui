@@ -6836,6 +6836,21 @@ static void fts_suspend_work(struct work_struct *work)
 	lpm_disable_for_dev(false, EVENT_INPUT);
 #endif
 	xiaomi_touch_set_suspend_state(XIAOMI_TOUCH_SUSPEND);
+
+	/* The gesture_cmd SPI transfer sent above via fts_mode_handler()
+	 * leaves the SPI controller (a8c000.spi) runtime-active for its
+	 * 250ms autosuspend delay. If system-wide suspend triggers within
+	 * that window, spi_geni_suspend() sees "runtime PM is active" and
+	 * aborts with -EBUSY. Force a synchronous idle-check here, right
+	 * after the transfer, while there is still real time margin before
+	 * userspace eventually triggers actual system suspend. */
+	if (info->client && info->client->controller &&
+	    info->client->controller->dev.parent) {
+		struct device *spi_ctrl_dev = info->client->controller->dev.parent;
+
+		pm_runtime_get_sync(spi_ctrl_dev);
+		pm_runtime_put_sync(spi_ctrl_dev);
+	}
 }
 
 /**@}*/
@@ -8146,19 +8161,6 @@ static int fts_pm_suspend(struct device *dev)
 #endif
 	info->tp_pm_suspend = true;
 	reinit_completion(&info->pm_resume_completion);
-
-	/* Force the SPI controller (a8c000.spi) to synchronously drop to
-	 * runtime-suspended state right now, instead of waiting for its
-	 * 250ms autosuspend delay. Without this, system-wide suspend can
-	 * race against the controller's pending autosuspend timer and
-	 * abort with -EBUSY if triggered within that window. */
-	if (info->client && info->client->controller &&
-	    info->client->controller->dev.parent) {
-		struct device *spi_ctrl_dev = info->client->controller->dev.parent;
-
-		pm_runtime_get_sync(spi_ctrl_dev);
-		pm_runtime_put_sync(spi_ctrl_dev);
-	}
 
 	return 0;
 
