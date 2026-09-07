@@ -203,6 +203,8 @@ size_t lz4raw_encode_buffer(uint8_t *__restrict dst_buffer, size_t dst_size,
 
 	while (src_size > 0) {
 		int i = 0;
+		const size_t src_to_encode = src_size > BLOCK_SIZE_2G ? BLOCK_SIZE_2G : src_size;
+
 		for (; i < LZ4_COMPRESS_HASH_ENTRIES;) {
 			hashTable[i++] = HASH_FILL;
 			hashTable[i++] = HASH_FILL;
@@ -211,7 +213,6 @@ size_t lz4raw_encode_buffer(uint8_t *__restrict dst_buffer, size_t dst_size,
 		}
 
 		// Bytes to encode in this block
-		const size_t src_to_encode = src_size > BLOCK_SIZE_2G ? BLOCK_SIZE_2G : src_size;
 
 		// Run the encoder, only the last block emits final literals. Allows concatenation of encoded payloads.
 		// Blocks are encoded independently, so src_begin is set to each block origin instead of src_buffer
@@ -547,12 +548,14 @@ static int LZ4P_compress_fast_extState(
 	int maxOutputSize,
 	int acceleration)
 {
+	LZ4_stream_t_internal *ctx;
+
 	if (!state) {
 		pr_err("%s err state null\n", __func__);
 		return 0;
 	}
 
-	LZ4_stream_t_internal * ctx = &((LZ4_stream_t *)state)->internal_donotuse;
+	ctx = &((LZ4_stream_t *)state)->internal_donotuse;
 
 	LZ4P_resetStream((LZ4_stream_t *)state);
 
