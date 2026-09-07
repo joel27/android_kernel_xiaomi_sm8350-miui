@@ -204,6 +204,9 @@ size_t lz4raw_encode_buffer(uint8_t *__restrict dst_buffer, size_t dst_size,
 	while (src_size > 0) {
 		int i = 0;
 		const size_t src_to_encode = src_size > BLOCK_SIZE_2G ? BLOCK_SIZE_2G : src_size;
+		uint8_t *dst_start = dst;
+		const uint8_t *src_start = src;
+		int src_size_ptr = src_to_encode;
 
 		for (; i < LZ4_COMPRESS_HASH_ENTRIES;) {
 			hashTable[i++] = HASH_FILL;
@@ -213,12 +216,8 @@ size_t lz4raw_encode_buffer(uint8_t *__restrict dst_buffer, size_t dst_size,
 		}
 
 		// Bytes to encode in this block
-
 		// Run the encoder, only the last block emits final literals. Allows concatenation of encoded payloads.
 		// Blocks are encoded independently, so src_begin is set to each block origin instead of src_buffer
-		uint8_t *dst_start = dst;
-		const uint8_t *src_start = src;
-		int src_size_ptr = src_to_encode;
 
 		_lz4_encode_2gb(&dst, dst_size, &src, src, src_size_ptr, hashTable, src_to_encode < src_size);
 		// Check progress
@@ -555,15 +554,15 @@ static int LZ4P_compress_fast_extState(
 		return 0;
 	}
 
-	ctx = &((LZ4_stream_t *)state)->internal_donotuse;
-
-	LZ4P_resetStream((LZ4_stream_t *)state);
-
 #if LZ4_ARCH64
 	const enum tableType_t tableType = byU32;
 #else
 	const enum tableType_t tableType = byPtr;
 #endif
+
+	ctx = &((LZ4_stream_t *)state)->internal_donotuse;
+
+	LZ4P_resetStream((LZ4_stream_t *)state);
 
 
 	if (acceleration < 1)
