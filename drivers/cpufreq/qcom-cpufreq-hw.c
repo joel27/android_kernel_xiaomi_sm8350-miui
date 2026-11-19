@@ -693,18 +693,25 @@ static int qcom_cpufreq_hw_driver_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	rc = cpufreq_register_driver(&cpufreq_qcom_hw_driver);
-	if (rc) {
-		dev_err(&pdev->dev, "CPUFreq HW driver failed to register\n");
-		return rc;
-	}
-
-	for_each_possible_cpu(cpu)
+for_each_possible_cpu(cpu)
 		spin_lock_init(&qcom_cpufreq_counter[cpu].lock);
 
+	/*
+	 * WALT registers a frequency transition notifier early at boot.
+	 * Register the cycle counter callback first so WALT drops that
+	 * notifier before cpufreq_register_driver() initializes the
+	 * schedutil policy; otherwise the cpufreq core rejects fast-switch
+	 * and schedutil spawns sugov kthreads.
+	 */
 	rc = register_cpu_cycle_counter_cb(&cycle_counter_cb);
 	if (rc) {
 		dev_err(&pdev->dev, "cycle counter cb failed to register\n");
+		return rc;
+	}
+
+	rc = cpufreq_register_driver(&cpufreq_qcom_hw_driver);
+	if (rc) {
+		dev_err(&pdev->dev, "CPUFreq HW driver failed to register\n");
 		return rc;
 	}
 
